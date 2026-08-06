@@ -94,6 +94,33 @@ def chat(request: ChatRequest):
         "relation": result.get("relation"),
         "resolved_query": result.get("resolved_query"),
         "context_reason": result.get("context_reason"),
+        "scope": result.get("scope"),
+        "scope_reason": result.get("scope_reason"),
+        "intent": result.get("intent"),
+        "action": result.get("action"),
+        "known_information": result.get("known_information", []),
+        "missing_information": result.get("missing_information", []),
+        "clarifying_question": result.get("clarifying_question"),
+        "intent_reason": result.get("intent_reason"),
+        "rewritten_queries": result.get("rewritten_queries", []),
+        "rewrite_reason": result.get("rewrite_reason"),
+        "search_queries": result.get("search_queries", []),
+        "retrieval_candidates": result.get("retrieval_candidates", []),
+        "retrieved_documents": result.get("retrieved_documents", []),
+        "evidence_status": result.get("evidence_status"),
+        "supporting_document_indexes": result.get(
+            "supporting_document_indexes",
+            [],
+        ),
+        "supporting_documents": result.get("supporting_documents", []),
+        "evidence_missing_information": result.get(
+            "evidence_missing_information",
+            [],
+        ),
+        "evidence_clarifying_question": result.get(
+            "evidence_clarifying_question"
+        ),
+        "evidence_reason": result.get("evidence_reason"),
     }
 
     session_states[request.session_id] = updated_state
@@ -105,6 +132,67 @@ def chat(request: ChatRequest):
             "resolved_query": result.get("resolved_query"),
             "active_issue": result.get("active_issue"),
             "context_reason": result.get("context_reason"),
+            "scope": result.get("scope"),
+            "scope_reason": result.get("scope_reason"),
+            "intent": result.get("intent"),
+            "action": result.get("action"),
+            "known_information": result.get("known_information", []),
+            "missing_information": result.get("missing_information", []),
+            "clarifying_question": result.get("clarifying_question"),
+            "intent_reason": result.get("intent_reason"),
+            "rewritten_queries": result.get("rewritten_queries", []),
+            "rewrite_reason": result.get("rewrite_reason"),
+            "search_queries": result.get("search_queries", []),
+            "retrieval_candidate_count": len(
+                result.get("retrieval_candidates", [])
+            ),
+            "rrf_top_sections": [
+                {
+                    "section_id": document.metadata.get("section_id"),
+                    "section_title": document.metadata.get("section_title"),
+                    "rrf_rank": document.metadata.get("rrf_rank"),
+                    "rrf_score": document.metadata.get("rrf_score"),
+                }
+                for document in result.get(
+                    "retrieval_candidates",
+                    [],
+                )[:10]
+            ],
+            "retrieved_document_count": len(
+                result.get("retrieved_documents", [])
+            ),
+            "retrieved_sections": [
+                {
+                    "section_id": document.metadata.get("section_id"),
+                    "section_title": document.metadata.get("section_title"),
+                    "rrf_rank": document.metadata.get("rrf_rank"),
+                    "rrf_score": document.metadata.get("rrf_score"),
+                    "reranker_rank": document.metadata.get(
+                        "reranker_rank"
+                    ),
+                    "reranker_score": document.metadata.get(
+                        "reranker_score"
+                    ),
+                    "matched_queries": document.metadata.get(
+                        "matched_queries",
+                        [],
+                    ),
+                }
+                for document in result.get("retrieved_documents", [])
+            ],
+            "evidence_status": result.get("evidence_status"),
+            "supporting_document_indexes": result.get(
+                "supporting_document_indexes",
+                [],
+            ),
+            "evidence_missing_information": result.get(
+                "evidence_missing_information",
+                [],
+            ),
+            "evidence_clarifying_question": result.get(
+                "evidence_clarifying_question"
+            ),
+            "evidence_reason": result.get("evidence_reason"),
         }
     )
 

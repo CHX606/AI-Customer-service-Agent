@@ -8,11 +8,14 @@ uncertain：暂时无法判断新旧问题关系。
 """
 
 import json
-from typing import Any, Literal
+from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+
+from back.agent.issue_lifecycle import decide_relation_with_lifecycle
+from back.agent.state import ActiveIssue
 
 
 class ContextAnalysis(BaseModel):
@@ -42,12 +45,34 @@ class ContextAnalysis(BaseModel):
         description="简短说明为什么判断为这种关系，不超过两句话。"
     )
 
+    is_self_contained: bool = Field(
+        description="只看当前消息，是否已经能独立理解为一个完整问题。"
+    )
+
+    references_active_issue: bool = Field(
+        description=(
+            "当前消息是否通过这个、它、刚才的问题、还是不行等表达，"
+            "明确指向正在处理的问题。"
+        )
+    )
+
+    answers_last_question: bool = Field(
+        description="当前消息是否在直接回答助手上一轮提出的问题。"
+    )
+
+    explicit_new_issue: bool = Field(
+        description=(
+            "当前消息是否使用另外、还有一个问题、换个问题等表达，"
+            "明确开始新问题。"
+        )
+    )
+
 
 def analyze_context(
     llm: BaseChatModel,
     current_query: str,
     recent_messages: list[dict[str, str]],
-    active_issue: dict[str, Any] | None,
+    active_issue: ActiveIssue | None,
 ) -> ContextAnalysis:
     """分析用户当前消息与正在处理的问题之间的关系。"""
 
@@ -81,6 +106,13 @@ def analyze_context(
 - 使用“这个”“它”“刚才的”等指代当前问题的消息，通常属于 continue。
 - “另外”“还有一个问题”“换个问题”等表达通常表示 new_issue。
 - “不是续费，是第一次购买”等明确推翻旧信息的表达属于 correction。
+- is_self_contained 只能根据 current_query 本身判断，不能把旧问题补进去后再判断。
+- references_active_issue 表示当前消息确实指向旧问题；仅仅业务类别相近不算指向。
+- answers_last_question 只在当前消息确实回答了助手最后一个问题时为 true。
+- explicit_new_issue 只在用户明确表达切换问题时为 true。
+- active_issue.status 为 awaiting_user 时，直接回答上一轮追问通常属于 continue。
+- active_issue.status 为 answered、resolved 或 handed_off 时，新的完整问题默认属于
+  new_issue；除非用户明确指向旧问题，例如“还是不行”“刚才那个问题”。
 - 不要把助手提出的问题当成用户已经确认的事实。
 - 不要编造用户没有提供的信息。
 - 如果是 new_issue，resolved_query 不能混入旧问题。
@@ -108,5 +140,31 @@ def analyze_context(
             ),
         ]
     )
+
+    final_relation = decide_relation_with_lifecycle(
+        model_relation=result.relation,
+        active_issue=active_issue,
+        is_self_contained=result.is_self_contained,
+        references_active_issue=result.references_active_issue,
+        answers_last_question=result.answers_last_question,
+        explicit_new_issue=result.explicit_new_issue,
+    )
+
+    if final_relation != result.relation:
+        final_resolved_query = result.resolved_query
+
+        if final_relation == "new_issue":
+            final_resolved_query = current_query.strip()
+
+        result = result.model_copy(
+            update={
+                "relation": final_relation,
+                "resolved_query": final_resolved_query,
+                "decision_reason": (
+                    f"{result.decision_reason} "
+                    "系统结合当前问题生命周期修正了上下文关系。"
+                ),
+            }
+        )
 
     return result

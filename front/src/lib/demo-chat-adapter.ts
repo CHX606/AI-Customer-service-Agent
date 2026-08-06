@@ -1,9 +1,14 @@
 import type { ChatModelAdapter } from "@assistant-ui/react";
 
 import { sendChatMessage } from "../api/chat";
+import {
+  getOrCreateSessionId,
+  saveStoredChatMessages,
+  type StoredChatMessage,
+} from "./chat-storage";
 
 
-const SESSION_ID = crypto.randomUUID();
+const SESSION_ID = getOrCreateSessionId();
 
 
 function getLatestQuestion(
@@ -23,6 +28,38 @@ function getLatestQuestion(
 }
 
 
+function serializeMessages(
+  messages: Parameters<ChatModelAdapter["run"]>[0]["messages"],
+): StoredChatMessage[] {
+  return messages.flatMap((message) => {
+    if (
+      message.role !== "user"
+      && message.role !== "assistant"
+    ) {
+      return [];
+    }
+
+    const content = message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+      .trim();
+
+    if (!content) {
+      return [];
+    }
+
+    return [
+      {
+        role: message.role,
+        content,
+        createdAt: message.createdAt.toISOString(),
+      },
+    ];
+  });
+}
+
+
 export const demoChatAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
     const question = getLatestQuestion(messages);
@@ -39,6 +76,16 @@ export const demoChatAdapter: ChatModelAdapter = {
     if (abortSignal.aborted) {
       return;
     }
+
+    const storedMessages = serializeMessages(messages);
+
+    storedMessages.push({
+      role: "assistant",
+      content: response.answer,
+      createdAt: new Date().toISOString(),
+    });
+
+    saveStoredChatMessages(storedMessages);
 
     yield {
       content: [

@@ -17,11 +17,33 @@ import {
   Database,
   Headphones,
   MessageCircleMore,
+  Plus,
   ShieldCheck,
   Sparkles,
   UserRound,
 } from "lucide-react";
 import { demoChatAdapter } from "../lib/demo-chat-adapter";
+import {
+  loadStoredChatMessages,
+  resetStoredChatSession,
+} from "../lib/chat-storage";
+
+
+const INITIAL_MESSAGES = loadStoredChatMessages();
+
+
+function startNewConversation() {
+  const confirmed = window.confirm(
+    "新建对话会清除当前浏览器中保存的聊天记录，是否继续？",
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  resetStoredChatSession();
+  window.location.reload();
+}
 
 const suggestions = [
   {
@@ -137,6 +159,15 @@ function ChatWorkspace() {
           </div>
 
           <div className="sidebar-section">
+            <button
+              className="new-conversation-button"
+              type="button"
+              onClick={startNewConversation}
+            >
+              <Plus size={18} strokeWidth={2.2} />
+              <span>新对话</span>
+            </button>
+
             <p className="sidebar-label">当前会话</p>
             <div className="conversation-item" aria-current="page">
               <MessageCircleMore size={18} />
@@ -226,7 +257,12 @@ function ChatWorkspace() {
 }
 
 export function CustomerServiceChat() {
-  const runtime = useLocalRuntime(demoChatAdapter);
+  const runtime = useLocalRuntime(
+    demoChatAdapter,
+    {
+      initialMessages: INITIAL_MESSAGES,
+    },
+  );
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
