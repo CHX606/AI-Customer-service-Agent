@@ -104,6 +104,33 @@ button {
   margin-top: 36px;
 }
 
+.new-conversation-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 11px 13px;
+  border: 1px solid rgb(255 255 255 / 0.13);
+  border-radius: 12px;
+  color: #dce9ed;
+  background: rgb(255 255 255 / 0.055);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.new-conversation-button:hover {
+  border-color: rgb(84 187 165 / 0.55);
+  background: rgb(84 187 165 / 0.12);
+}
+
+.new-conversation-button:focus-visible {
+  outline: 3px solid rgb(84 187 165 / 0.2);
+  outline-offset: 2px;
+}
+
 .sidebar-label {
   margin: 0 10px 10px;
   color: #708b9c;

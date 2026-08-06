@@ -2,7 +2,7 @@
 根据用户提出的问题
 向量检索结果+ BM25检索结果
 → RRF融合
-→ 得到该问题最终的Top 5 chunk
+→ 得到供Reranker精排的宽召回候选chunk
 """
 
 
@@ -17,8 +17,9 @@ from back.rag.keyword_retriever import (
 from back.rag.vectorstore import get_vector_store
 
 
-VECTOR_CANDIDATES = 10
-KEYWORD_CANDIDATES = 10
+VECTOR_CANDIDATES = 30
+KEYWORD_CANDIDATES = 30
+RRF_CANDIDATES = 30
 FINAL_RESULTS = 5
 
 VECTOR_WEIGHT = 1.0
@@ -195,7 +196,10 @@ def fuse_results_with_rrf(
 
     documents = []
 
-    for item in ranked_items[:limit]:
+    for rrf_rank, item in enumerate(
+        ranked_items[:limit],
+        start=1,
+    ):
         original_document = item["document"]
 
         documents.append(
@@ -211,6 +215,7 @@ def fuse_results_with_rrf(
                     "rrf_score": (
                         item["rrf_score"]
                     ),
+                    "rrf_rank": rrf_rank,
                     "vector_rank": (
                         item["vector_rank"]
                     ),
@@ -253,6 +258,175 @@ def retrieve_documents_hybrid(
         keyword_results=keyword_results,
         limit=limit,
     )
+
+    return documents
+
+
+def retrieve_documents_multi_query(
+    queries: list[str],
+    limit: int = FINAL_RESULTS,
+):
+    """对多条查询分别检索，并使用RRF统一融合排名。"""
+
+    cleaned_queries = []
+    seen_queries = set()
+
+    for query in queries:
+        cleaned_query = " ".join(query.split())
+
+        if not cleaned_query or cleaned_query in seen_queries:
+            continue
+
+        seen_queries.add(cleaned_query)
+        cleaned_queries.append(cleaned_query)
+
+    if not cleaned_queries:
+        return []
+
+    fused_items = {}
+
+    for query in cleaned_queries:
+        vector_results = retrieve_vector_candidates(
+            question=query,
+        )
+
+        keyword_results = retrieve_keyword_candidates(
+            question=query,
+        )
+
+        for rank, (
+            document,
+            distance,
+        ) in enumerate(
+            vector_results,
+            start=1,
+        ):
+            document_key = get_document_key(document)
+
+            if document_key not in fused_items:
+                fused_items[document_key] = {
+                    "document": document,
+                    "rrf_score": 0.0,
+                    "matched_queries": set(),
+                    "query_ranks": [],
+                    "best_vector_rank": 0,
+                    "best_vector_distance": -1.0,
+                    "best_keyword_rank": 0,
+                    "best_bm25_score": -1.0,
+                }
+
+            item = fused_items[document_key]
+
+            item["rrf_score"] += (
+                VECTOR_WEIGHT
+                / (RRF_CONSTANT + rank)
+            )
+
+            item["matched_queries"].add(query)
+            item["query_ranks"].append(
+                {
+                    "query": query,
+                    "method": "vector",
+                    "rank": rank,
+                    "raw_score": distance,
+                }
+            )
+
+            if (
+                item["best_vector_rank"] == 0
+                or rank < item["best_vector_rank"]
+            ):
+                item["best_vector_rank"] = rank
+                item["best_vector_distance"] = distance
+
+        for rank, (
+            document,
+            bm25_score,
+        ) in enumerate(
+            keyword_results,
+            start=1,
+        ):
+            document_key = get_document_key(document)
+
+            if document_key not in fused_items:
+                fused_items[document_key] = {
+                    "document": document,
+                    "rrf_score": 0.0,
+                    "matched_queries": set(),
+                    "query_ranks": [],
+                    "best_vector_rank": 0,
+                    "best_vector_distance": -1.0,
+                    "best_keyword_rank": 0,
+                    "best_bm25_score": -1.0,
+                }
+
+            item = fused_items[document_key]
+
+            item["rrf_score"] += (
+                KEYWORD_WEIGHT
+                / (RRF_CONSTANT + rank)
+            )
+
+            item["matched_queries"].add(query)
+            item["query_ranks"].append(
+                {
+                    "query": query,
+                    "method": "bm25",
+                    "rank": rank,
+                    "raw_score": bm25_score,
+                }
+            )
+
+            if (
+                item["best_keyword_rank"] == 0
+                or rank < item["best_keyword_rank"]
+            ):
+                item["best_keyword_rank"] = rank
+                item["best_bm25_score"] = bm25_score
+
+    ranked_items = sorted(
+        fused_items.values(),
+        key=lambda item: item["rrf_score"],
+        reverse=True,
+    )
+
+    documents = []
+
+    for rrf_rank, item in enumerate(
+        ranked_items[:limit],
+        start=1,
+    ):
+        original_document = item["document"]
+
+        documents.append(
+            Document(
+                page_content=original_document.page_content,
+                metadata={
+                    **original_document.metadata,
+                    "retrieval_method": (
+                        "multi_query_hybrid_rrf"
+                    ),
+                    "rrf_score": item["rrf_score"],
+                    "rrf_rank": rrf_rank,
+                    "matched_queries": sorted(
+                        item["matched_queries"]
+                    ),
+                    "query_ranks": item["query_ranks"],
+                    "vector_rank": (
+                        item["best_vector_rank"]
+                    ),
+                    "vector_distance": (
+                        item["best_vector_distance"]
+                    ),
+                    "keyword_rank": (
+                        item["best_keyword_rank"]
+                    ),
+                    "bm25_score": (
+                        item["best_bm25_score"]
+                    ),
+                },
+            )
+        )
 
     return documents
 
