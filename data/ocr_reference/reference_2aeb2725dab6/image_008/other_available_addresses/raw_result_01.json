@@ -1,0 +1,41 @@
+{
+    "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_008\\region_03_other_available_addresses.png",
+    "page_index": null,
+    "page_count": null,
+    "width": 599,
+    "height": 428,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": false,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "footnote",
+            "header",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "ocr",
+            "block_content": "2月14日\n\nmike coke\nhttp://47.83.228.237/ 反代官网。 17:24\n\n3月11日\n\nmike coke\n群里官网以及AI自动回复加上：https://47.238.225.31:1000/ 17:05\n\n3月12日\n\nmike coke\nhttps://www.itdog.cn/tcping/hk1.fastcokeasdasd.com:21552 15:38\n\n5月17日\n\nmike coke\nhttp://47.75.111.127/\n替换之前那个http://47.83.228.237 16:06",
+            "block_bbox": [
+                0,
+                0,
+                599,
+                428
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        }
+    ]
+}

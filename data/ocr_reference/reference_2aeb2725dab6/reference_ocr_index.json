@@ -1,0 +1,38 @@
+{
+  "status": "completed",
+  "source_manifest": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\manifest.json",
+  "image_count": 5,
+  "region_count": 14,
+  "images": [
+    {
+      "image_order": 7,
+      "category": "shadowrocket_subscription_error",
+      "title": "Shadowrocket 无法获取订阅节点",
+      "result_path": "D:\\myproject\\AI Customer service Agent\\data\\ocr_reference\\reference_2aeb2725dab6\\image_007\\diagnostic_result.json"
+    },
+    {
+      "image_order": 8,
+      "category": "backup_subscription_address",
+      "title": "公告中的备用订阅地址",
+      "result_path": "D:\\myproject\\AI Customer service Agent\\data\\ocr_reference\\reference_2aeb2725dab6\\image_008\\diagnostic_result.json"
+    },
+    {
+      "image_order": 9,
+      "category": "clash_subscription_import_error",
+      "title": "Clash Verge 导入订阅失败",
+      "result_path": "D:\\myproject\\AI Customer service Agent\\data\\ocr_reference\\reference_2aeb2725dab6\\image_009\\diagnostic_result.json"
+    },
+    {
+      "image_order": 10,
+      "category": "windows_manual_proxy",
+      "title": "Windows 手动代理配置",
+      "result_path": "D:\\myproject\\AI Customer service Agent\\data\\ocr_reference\\reference_2aeb2725dab6\\image_010\\diagnostic_result.json"
+    },
+    {
+      "image_order": 11,
+      "category": "mac_app_store_account",
+      "title": "Mac App Store 账户退出入口",
+      "result_path": "D:\\myproject\\AI Customer service Agent\\data\\ocr_reference\\reference_2aeb2725dab6\\image_011\\diagnostic_result.json"
+    }
+  ]
+}

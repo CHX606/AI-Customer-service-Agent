@@ -1,0 +1,220 @@
+{
+  "status": "completed",
+  "image_order": 9,
+  "category": "clash_subscription_import_error",
+  "title": "Clash Verge 导入订阅失败",
+  "diagnostic_goal": "识别 Clash Verge 导入订阅时出现的网络请求或 TLS 错误。",
+  "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_009.png",
+  "section_id": "4.3",
+  "section_title": "导入",
+  "block_index": 69,
+  "previous_text": "苹果用户极易下错软件，下成山寨软件。也会导致报错，查验对方的软件是否是正版软件\n如果浏览器和软件都没有问题，一般是地区运营商阻断，无法使用域名格式的订阅链接。索要订阅链接之后修改订阅链接头部为IP。举例：对方发送订阅链接为：https://aaa.cokecloud.net/config?token=*********************，修改为：https://8.217.98.112:1000/config?token=*********************。可以搭配“clash手动导入”和“火箭手动导入”快捷键指引对方使用新订阅链接导入。修改的IP在群里置顶找\n以下为典型的需要更换订阅链接的情况：",
+  "next_text": "4.4  安卓端\n4.4.1  官方客户端\n进行基本环境检查，节点全红询问对方网络环境，引导尝试换网，还不行的话依自身判断定位问题是线路问题/软件问题。如果是软件问题，引导对方更换使用clash meta。可搭配使用“教程”快捷键。示例：换软件，用官网的clash meta（发送教程快捷键）。如果确信是线路问题，反馈给后台。反馈内容：对话链接、对方网络环境、不能用的具体表现。然后前台回复反馈给后台了，等技术处理。",
+  "combined_ocr_text": "订阅\nhttps://uptfwv.yau96.com/config?token=1\n全局扩展覆写配置\nMerge 使用 Clash 代理导入订阅失败导入订阅失败：failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\nMerger\n中文\n委托编辑注入需则需修改格式\n至点上shutowschool门的附件\nClash Verge\n首页\n代理\n连接\n规则\n日志\n测试\n设置\n0.00 B/s\n28.5 MB",
+  "regions": [
+    {
+      "status": "completed",
+      "image_order": 9,
+      "category": "clash_subscription_import_error",
+      "region_name": "clash_subscription_page",
+      "region_title": "Clash Verge 订阅页面",
+      "role": "context",
+      "description": "保留客户端名称、当前页面和订阅输入区域。",
+      "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_01_clash_subscription_page.png",
+      "crop_sha256": "34b9e91f57a5f61bdad63a849f7ce2649ede2b7ea78e1d8ec192287483032133",
+      "normalized_box": [
+        0.22,
+        0.03,
+        0.78,
+        1.0
+      ],
+      "pixel_box": [
+        292,
+        19,
+        1036,
+        640
+      ],
+      "ocr_text": "中文\n委托编辑注入需则需修改格式\n至点上shutowschool门的附件\n\nClash Verge\n\nClash Verge\n首页\n代理\n订阅\n连接\n规则\n日志\n测试\n设置\n0.00 B/s\n0.00 B/s\n28.5 MB",
+      "markdown_text": "中文\n\n委托编辑注入需则需修改格式\n\n至点上shutowschool门的附件\n\nClash Verge\n\nClash Verge\n\n首页\n\n代理\n\n订阅\n\n连接\n\n规则\n\n日志\n\n测试\n\n设置\n\n0.00 B/s\n\n0.00 B/s\n\n28.5 MB",
+      "raw_results": [
+        {
+          "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_01_clash_subscription_page.png",
+          "page_index": null,
+          "page_count": null,
+          "width": 744,
+          "height": 621,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": false,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "ocr",
+              "block_content": "中文\n委托编辑注入需则需修改格式\n至点上shutowschool门的附件\n\nClash Verge\n\nClash Verge\n首页\n代理\n订阅\n连接\n规则\n日志\n测试\n设置\n0.00 B/s\n0.00 B/s\n28.5 MB",
+              "block_bbox": [
+                0,
+                0,
+                744,
+                621
+              ],
+              "block_id": 0,
+              "block_order": 1,
+              "group_id": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "status": "completed",
+      "image_order": 9,
+      "category": "clash_subscription_import_error",
+      "region_name": "subscription_input",
+      "region_title": "订阅地址输入区域",
+      "role": "primary",
+      "description": "用于确认用户正在执行订阅导入操作及输入区域状态。",
+      "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_02_subscription_input.png",
+      "crop_sha256": "c10df3e51b0f38074209a6354c7f775c56f6c7a91cd2c738fdd60b6243e09d39",
+      "normalized_box": [
+        0.34,
+        0.15,
+        0.76,
+        0.34
+      ],
+      "pixel_box": [
+        452,
+        96,
+        1009,
+        218
+      ],
+      "ocr_text": "订阅\nhttps://uptfwv.yau96.com/config?token=1\n全局扩展覆写配置\nMerge 使用 Clash 代理导入订阅失败导入订阅失败：failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed",
+      "markdown_text": "订阅\n\nhttps://uptfwv.yau96.com/config?token=1\n\n全局扩展覆写配置\n\nMerge 使用 Clash 代理导入订阅失败导入订阅失败：failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed",
+      "raw_results": [
+        {
+          "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_02_subscription_input.png",
+          "page_index": null,
+          "page_count": null,
+          "width": 557,
+          "height": 122,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": false,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "ocr",
+              "block_content": "订阅\nhttps://uptfwv.yau96.com/config?token=1\n全局扩展覆写配置\nMerge 使用 Clash 代理导入订阅失败导入订阅失败：failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed",
+              "block_bbox": [
+                0,
+                0,
+                557,
+                122
+              ],
+              "block_id": 0,
+              "block_order": 1,
+              "group_id": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "status": "completed",
+      "image_order": 9,
+      "category": "clash_subscription_import_error",
+      "region_name": "import_error_message",
+      "region_title": "导入失败错误提示",
+      "role": "primary",
+      "description": "保留 failed to fetch、TLS verifier 等完整错误文字。",
+      "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_03_import_error_message.png",
+      "crop_sha256": "d2680a9338aa6296fd7f226812e5735df9f28efeae7d19647f45ebd7aec0857c",
+      "normalized_box": [
+        0.52,
+        0.15,
+        0.76,
+        0.36
+      ],
+      "pixel_box": [
+        691,
+        96,
+        1009,
+        230
+      ],
+      "ocr_text": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+      "markdown_text": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+      "raw_results": [
+        {
+          "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_03_import_error_message.png",
+          "page_index": null,
+          "page_count": null,
+          "width": 318,
+          "height": 134,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": false,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "ocr",
+              "block_content": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+              "block_bbox": [
+                0,
+                0,
+                318,
+                134
+              ],
+              "block_id": 0,
+              "block_order": 1,
+              "group_id": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

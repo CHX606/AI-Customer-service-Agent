@@ -5,6 +5,7 @@ rebuild_vector_store():
 重新构建数据库：
 加载Word文档
 → 结构化切块
+→ 加载图片诊断资料
 → Embedding转成向量
 → 清空旧集合
 → 将新向量存入Chroma
@@ -16,9 +17,10 @@ from pathlib import Path
 
 from langchain_chroma import Chroma
 
-from back.rag.loader import load_documents
-from back.rag.splitter import split_documents
 from back.rag.embeddings import get_embedding_model
+from back.rag.knowledge_loader import (
+    load_knowledge_documents,
+)
 
 
 # 当前文件夹：back/rag
@@ -51,8 +53,7 @@ def get_vector_store():
 def rebuild_vector_store():
     """根据知识库文档重新构建向量数据库。"""
 
-    documents = load_documents()
-    chunks = split_documents(documents)
+    knowledge_documents = load_knowledge_documents()
 
     vector_store = get_vector_store()
 
@@ -61,7 +62,7 @@ def rebuild_vector_store():
 
     # 将文本块转换成向量并存入 Chroma
     vector_store.add_documents(
-        documents=chunks
+        documents=knowledge_documents
     )
 
     return vector_store

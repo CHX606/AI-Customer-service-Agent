@@ -1,0 +1,68 @@
+{
+  "status": "completed",
+  "image_order": 9,
+  "category": "clash_subscription_import_error",
+  "region_name": "import_error_message",
+  "region_title": "导入失败错误提示",
+  "role": "primary",
+  "description": "保留 failed to fetch、TLS verifier 等完整错误文字。",
+  "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_03_import_error_message.png",
+  "crop_sha256": "d2680a9338aa6296fd7f226812e5735df9f28efeae7d19647f45ebd7aec0857c",
+  "normalized_box": [
+    0.52,
+    0.15,
+    0.76,
+    0.36
+  ],
+  "pixel_box": [
+    691,
+    96,
+    1009,
+    230
+  ],
+  "ocr_text": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+  "markdown_text": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+  "raw_results": [
+    {
+      "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_03_import_error_message.png",
+      "page_index": null,
+      "page_count": null,
+      "width": 318,
+      "height": 134,
+      "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": false,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+          "number",
+          "footnote",
+          "header",
+          "header_image",
+          "footer",
+          "footer_image",
+          "aside_text"
+        ],
+        "return_layout_polygon_points": true
+      },
+      "parsing_res_list": [
+        {
+          "block_label": "ocr",
+          "block_content": "使用Clash代理导入订阅失败导入订阅失败: failed to fetch remote profile: platform TLS verifier failed: Request failed; static webpki roots fallback failed: Request failed\n\nMerger",
+          "block_bbox": [
+            0,
+            0,
+            318,
+            134
+          ],
+          "block_id": 0,
+          "block_order": 1,
+          "group_id": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "status": "completed",
+  "image_order": 7,
+  "category": "shadowrocket_subscription_error",
+  "region_name": "subscription_details",
+  "region_title": "订阅节点与剩余信息",
+  "role": "primary",
+  "description": "包含剩余流量、重置时间、到期时间和订阅提示。",
+  "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_007\\region_03_subscription_details.png",
+  "crop_sha256": "4b808dc9224500795fc097c0e146d05495dd593d6a1ed3f46a8b6b51e4f4649c",
+  "normalized_box": [
+    0.0,
+    0.43,
+    1.0,
+    0.93
+  ],
+  "pixel_box": [
+    0,
+    436,
+    472,
+    942
+  ],
+  "ocr_text": "不能获取订阅节点\n\n剩余流量：111.19 GB\n\nSHADOWSocks / UDP\n\n距离下次重置剩余：10 天\n\nSHADOWSocks / UDP\n\n套餐到期：2027-02-12\n\nSHADOWSocks / UDP\n\n▲ 请尽快下载或升级一键客户端\n\nSHADOWSocks / UDP\n\n▲ 订阅链接后期可能无法使用\n\nSHADOWSocks / UDP\n\n发送任意内容到邮箱可获取链接\n\nSHADOWSocks / UDP\n\n邮箱：m78starcloud@gmail.com",
+  "markdown_text": "不能获取订阅节点\n\n剩余流量：111.19 GB\n\nSHADOWSocks / UDP\n\n距离下次重置剩余：10 天\n\nSHADOWSocks / UDP\n\n套餐到期：2027-02-12\n\nSHADOWSocks / UDP\n\n▲ 请尽快下载或升级一键客户端\n\nSHADOWSocks / UDP\n\n▲ 订阅链接后期可能无法使用\n\nSHADOWSocks / UDP\n\n发送任意内容到邮箱可获取链接\n\nSHADOWSocks / UDP\n\n邮箱：m78starcloud@gmail.com",
+  "raw_results": [
+    {
+      "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_007\\region_03_subscription_details.png",
+      "page_index": null,
+      "page_count": null,
+      "width": 472,
+      "height": 506,
+      "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": false,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+          "number",
+          "footnote",
+          "header",
+          "header_image",
+          "footer",
+          "footer_image",
+          "aside_text"
+        ],
+        "return_layout_polygon_points": true
+      },
+      "parsing_res_list": [
+        {
+          "block_label": "ocr",
+          "block_content": "不能获取订阅节点\n\n剩余流量：111.19 GB\n\nSHADOWSocks / UDP\n\n距离下次重置剩余：10 天\n\nSHADOWSocks / UDP\n\n套餐到期：2027-02-12\n\nSHADOWSocks / UDP\n\n▲ 请尽快下载或升级一键客户端\n\nSHADOWSocks / UDP\n\n▲ 订阅链接后期可能无法使用\n\nSHADOWSocks / UDP\n\n发送任意内容到邮箱可获取链接\n\nSHADOWSocks / UDP\n\n邮箱：m78starcloud@gmail.com",
+          "block_bbox": [
+            0,
+            0,
+            472,
+            506
+          ],
+          "block_id": 0,
+          "block_order": 1,
+          "group_id": 0
+        }
+      ]
+    }
+  ]
+}
