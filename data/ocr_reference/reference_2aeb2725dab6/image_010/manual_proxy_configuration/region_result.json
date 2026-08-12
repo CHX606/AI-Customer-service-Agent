@@ -1,0 +1,68 @@
+{
+  "status": "completed",
+  "image_order": 10,
+  "category": "windows_manual_proxy",
+  "region_name": "manual_proxy_configuration",
+  "region_title": "手动代理配置",
+  "role": "primary",
+  "description": "包含代理开关、地址、端口、例外地址和保存按钮。",
+  "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_010\\region_02_manual_proxy_configuration.png",
+  "crop_sha256": "0a810955e9a106809904c85dc6da24bc3c85f1d2f8a60c735e4dfeda2b05b226",
+  "normalized_box": [
+    0.21,
+    0.43,
+    0.66,
+    0.9
+  ],
+  "pixel_box": [
+    279,
+    383,
+    876,
+    802
+  ],
+  "ocr_text": "手动设置代理\n将代理服务器用于以太网或 Wi-Fi 连接。这些设置不适用于 VPN 连接。\n使用代理服务器\n地址 127.0.0.1 端口 10808\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n请勿将代理服务器用于本地(Intranet)地址\n保存",
+  "markdown_text": "手动设置代理\n\n将代理服务器用于以太网或 Wi-Fi 连接。这些设置不适用于 VPN 连接。\n\n使用代理服务器\n\n地址 127.0.0.1 端口 10808\n\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n\n请勿将代理服务器用于本地(Intranet)地址\n\n保存",
+  "raw_results": [
+    {
+      "input_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_010\\region_02_manual_proxy_configuration.png",
+      "page_index": null,
+      "page_count": null,
+      "width": 597,
+      "height": 419,
+      "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": false,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+          "number",
+          "footnote",
+          "header",
+          "header_image",
+          "footer",
+          "footer_image",
+          "aside_text"
+        ],
+        "return_layout_polygon_points": true
+      },
+      "parsing_res_list": [
+        {
+          "block_label": "ocr",
+          "block_content": "手动设置代理\n将代理服务器用于以太网或 Wi-Fi 连接。这些设置不适用于 VPN 连接。\n使用代理服务器\n地址 127.0.0.1 端口 10808\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n\n请勿对以下列条目开头的地址使用代理服务器。若有多个条目，请使用英文分号()来分隔。\n请勿将代理服务器用于本地(Intranet)地址\n保存",
+          "block_bbox": [
+            0,
+            0,
+            597,
+            419
+          ],
+          "block_id": 0,
+          "block_order": 1,
+          "group_id": 0
+        }
+      ]
+    }
+  ]
+}

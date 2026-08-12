@@ -1,8 +1,8 @@
 """
 该文件后端API接口文件，负责连接前端和Agent。
 
-前端POST /chat
-→ 接收message和session_id
+前端POST /chat 或 /chat/image
+→ 接收文字，或者文字与故障截图
 → 读取该会话历史状态
 → 调用LangGraph Agent
 → 保存更新后的状态
@@ -15,13 +15,28 @@ session_states：临时保存不同用户的会话状态。
 """
 
 
-from fastapi import FastAPI
+from dataclasses import dataclass
+from typing import Annotated
+
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
 
 from back.agent.graph import customer_service_graph
 from back.agent.state import CustomerServiceState
 from back.schemas import ChatRequest, ChatResponse
+from back.rag.user_image_query import (
+    MAX_UPLOAD_BYTES,
+    UserImageValidationError,
+    analyze_user_image,
+    build_image_agent_message,
+)
 
 
 app = FastAPI(
@@ -48,6 +63,14 @@ app.add_middleware(
 session_states: dict[str, CustomerServiceState] = {}
 
 
+@dataclass(frozen=True)
+class InternalChatRequest:
+    """图片 OCR 完成后调用 Agent 使用的内部请求。"""
+
+    message: str
+    session_id: str
+
+
 @app.get("/health")
 def health_check():
     """检查后端服务是否正常运行。"""
@@ -57,12 +80,10 @@ def health_check():
     }
 
 
-@app.post(
-    "/chat",
-    response_model=ChatResponse,
-)
-def chat(request: ChatRequest):
-    """接收用户问题并返回 AI 客服回答。"""
+def _execute_chat(
+    request: ChatRequest | InternalChatRequest,
+) -> ChatResponse:
+    """运行文字和图片请求共用的 LangGraph 会话流程。"""
 
     previous_state = session_states.get(
         request.session_id,
@@ -201,4 +222,82 @@ def chat(request: ChatRequest):
     return ChatResponse(
         answer=final_answer,
         session_id=request.session_id,
+    )
+
+
+@app.post(
+    "/chat",
+    response_model=ChatResponse,
+)
+def chat(request: ChatRequest):
+    """接收纯文字问题并返回 AI 客服回答。"""
+
+    return _execute_chat(request)
+
+
+@app.post(
+    "/chat/image",
+    response_model=ChatResponse,
+)
+def chat_with_image(
+    session_id: Annotated[
+        str,
+        Form(min_length=1, max_length=100),
+    ],
+    image: Annotated[
+        UploadFile,
+        File(description="用户上传的故障截图"),
+    ],
+    message: Annotated[
+        str,
+        Form(max_length=2000),
+    ] = "",
+):
+    """
+    临时识别用户截图，再把 OCR 文字作为本次查询交给 Agent。
+
+    图片和中间结果只存在于临时目录，不写入知识库数据库。
+    """
+
+    image_bytes = image.file.read(
+        MAX_UPLOAD_BYTES + 1
+    )
+
+    try:
+        analysis = analyze_user_image(image_bytes)
+    except UserImageValidationError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=422,
+            detail=str(error),
+        ) from error
+
+    agent_message = build_image_agent_message(
+        user_message=message,
+        analysis=analysis,
+    )
+
+    print(
+        {
+            "session_id": session_id,
+            "input_type": "image",
+            "image_filename": image.filename,
+            "image_size": (
+                f"{analysis.width}x{analysis.height}"
+            ),
+            "image_layout": analysis.layout,
+            "image_region_count": analysis.region_count,
+            "image_ocr_length": len(analysis.ocr_text),
+        }
+    )
+
+    return _execute_chat(
+        InternalChatRequest(
+            message=agent_message,
+            session_id=session_id,
+        )
     )

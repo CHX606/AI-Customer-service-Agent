@@ -1,6 +1,6 @@
 """
-  加载知识库
-→ 加载splitter.py文件的切好的块
+  加载统一知识库
+→ Word文本块 + 图片诊断块
 → jieba中文分词
 → 建立BM25检索器
 → 根据关键词匹配分数返回Top 5 chunk
@@ -12,8 +12,9 @@ from functools import lru_cache
 import jieba
 from langchain_community.retrievers import BM25Retriever
 
-from back.rag.loader import load_documents
-from back.rag.splitter import split_documents
+from back.rag.knowledge_loader import (
+    load_knowledge_documents,
+)
 
 
 MAX_RESULTS = 5
@@ -37,11 +38,10 @@ def tokenize_chinese(text: str) -> list[str]:
 def get_keyword_retriever():
     """创建并缓存 BM25 关键词检索器。"""
 
-    documents = load_documents()
-    chunks = split_documents(documents)
+    knowledge_documents = load_knowledge_documents()
 
     retriever = BM25Retriever.from_documents(
-        documents=chunks,
+        documents=knowledge_documents,
         preprocess_func=tokenize_chinese,
     )
 

@@ -1,4 +1,8 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:venv",
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "editor.tokenColorCustomizations": {
+        "comments": "",
+        "textMateRules": []
+    }
 }

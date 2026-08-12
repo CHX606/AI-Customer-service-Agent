@@ -1,0 +1,471 @@
+{
+  "strategy": "保留完整原图，同时裁剪关键诊断区域；第 1～6 张跳过，第 7～11 张参与用户截图诊断。",
+  "skipped_images": [
+    {
+      "image_order": 1,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_001.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    },
+    {
+      "image_order": 2,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_002.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    },
+    {
+      "image_order": 3,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_003.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    },
+    {
+      "image_order": 4,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_004.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    },
+    {
+      "image_order": 5,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_005.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    },
+    {
+      "image_order": 6,
+      "image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_006.png",
+      "reason": "用户确认第 1～6 张不参与图片诊断"
+    }
+  ],
+  "reference_images": [
+    {
+      "image_order": 7,
+      "category": "shadowrocket_subscription_error",
+      "title": "Shadowrocket 无法获取订阅节点",
+      "diagnostic_goal": "识别 Shadowrocket 当前连接状态、报错提示和订阅节点状态。",
+      "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_007.png",
+      "section_id": "4.3",
+      "section_title": "导入",
+      "block_index": 63,
+      "previous_text": "4.3  导入\n本篇仅限第三方客户端。导入报错提示有unsupported一般为软件太老不适配新协议。软件太老的告知更换教程里的软件。\n提示不能获取节点一般为没买套餐，由于资源紧张，可乐云现在已经不提供试用。典型的没买套餐的报错：",
+      "next_text": "一键导入没反应或者失败：使用了国产浏览器，告知换非国产浏览器。快捷键“垃圾国产浏览器”\n苹果用户极易下错软件，下成山寨软件。也会导致报错，查验对方的软件是否是正版软件\n如果浏览器和软件都没有问题，一般是地区运营商阻断，无法使用域名格式的订阅链接。索要订阅链接之后修改订阅链接头部为IP。举例：对方发送订阅链接为：https://aaa.cokecloud.net/config?token=*********************，修改为：https://8.217.98.112:1000/config?token=*********************。可以搭配“clash手动导入”和“火箭手动导入”快捷键指引对方使用新订阅链接导入。修改的IP在群里置顶找",
+      "regions": [
+        {
+          "image_order": 7,
+          "category": "shadowrocket_subscription_error",
+          "template_title": "Shadowrocket 无法获取订阅节点",
+          "diagnostic_goal": "识别 Shadowrocket 当前连接状态、报错提示和订阅节点状态。",
+          "region_name": "connection_status",
+          "region_title": "当前节点与连接状态",
+          "role": "context",
+          "description": "包含当前节点、全局路由和连通性测试入口。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_007.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_007\\region_01_connection_status.png",
+          "normalized_box": [
+            0.0,
+            0.0,
+            1.0,
+            0.43
+          ],
+          "pixel_box": [
+            0,
+            0,
+            472,
+            436
+          ],
+          "source_width": 472,
+          "source_height": 1013
+        },
+        {
+          "image_order": 7,
+          "category": "shadowrocket_subscription_error",
+          "template_title": "Shadowrocket 无法获取订阅节点",
+          "diagnostic_goal": "识别 Shadowrocket 当前连接状态、报错提示和订阅节点状态。",
+          "region_name": "error_dialog",
+          "region_title": "无法获取订阅节点提示",
+          "role": "primary",
+          "description": "用于判断用户是否出现“不能获取订阅节点”错误。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_007.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_007\\region_02_error_dialog.png",
+          "normalized_box": [
+            0.2,
+            0.36,
+            0.82,
+            0.56
+          ],
+          "pixel_box": [
+            94,
+            365,
+            387,
+            567
+          ],
+          "source_width": 472,
+          "source_height": 1013
+        },
+        {
+          "image_order": 7,
+          "category": "shadowrocket_subscription_error",
+          "template_title": "Shadowrocket 无法获取订阅节点",
+          "diagnostic_goal": "识别 Shadowrocket 当前连接状态、报错提示和订阅节点状态。",
+          "region_name": "subscription_details",
+          "region_title": "订阅节点与剩余信息",
+          "role": "primary",
+          "description": "包含剩余流量、重置时间、到期时间和订阅提示。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_007.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_007\\region_03_subscription_details.png",
+          "normalized_box": [
+            0.0,
+            0.43,
+            1.0,
+            0.93
+          ],
+          "pixel_box": [
+            0,
+            436,
+            472,
+            942
+          ],
+          "source_width": 472,
+          "source_height": 1013
+        }
+      ]
+    },
+    {
+      "image_order": 8,
+      "category": "backup_subscription_address",
+      "title": "公告中的备用订阅地址",
+      "diagnostic_goal": "确认用户使用的是哪一种订阅地址，以及是否需要切换备用地址。",
+      "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_008.png",
+      "section_id": "4.3",
+      "section_title": "导入",
+      "block_index": 67,
+      "previous_text": "一键导入没反应或者失败：使用了国产浏览器，告知换非国产浏览器。快捷键“垃圾国产浏览器”\n苹果用户极易下错软件，下成山寨软件。也会导致报错，查验对方的软件是否是正版软件\n如果浏览器和软件都没有问题，一般是地区运营商阻断，无法使用域名格式的订阅链接。索要订阅链接之后修改订阅链接头部为IP。举例：对方发送订阅链接为：https://aaa.cokecloud.net/config?token=*********************，修改为：https://8.217.98.112:1000/config?token=*********************。可以搭配“clash手动导入”和“火箭手动导入”快捷键指引对方使用新订阅链接导入。修改的IP在群里置顶找",
+      "next_text": "以下为典型的需要更换订阅链接的情况：\n4.4  安卓端\n4.4.1  官方客户端",
+      "regions": [
+        {
+          "image_order": 8,
+          "category": "backup_subscription_address",
+          "template_title": "公告中的备用订阅地址",
+          "diagnostic_goal": "确认用户使用的是哪一种订阅地址，以及是否需要切换备用地址。",
+          "region_name": "announcement_context",
+          "region_title": "公告上半部分",
+          "role": "context",
+          "description": "保留公告来源、时间和前置说明，避免只截取链接后失去语境。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_008.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_008\\region_01_announcement_context.png",
+          "normalized_box": [
+            0.0,
+            0.0,
+            0.6,
+            0.5
+          ],
+          "pixel_box": [
+            0,
+            0,
+            599,
+            498
+          ],
+          "source_width": 999,
+          "source_height": 995
+        },
+        {
+          "image_order": 8,
+          "category": "backup_subscription_address",
+          "template_title": "公告中的备用订阅地址",
+          "diagnostic_goal": "确认用户使用的是哪一种订阅地址，以及是否需要切换备用地址。",
+          "region_name": "highlighted_backup_address",
+          "region_title": "箭头标注的备用地址",
+          "role": "primary",
+          "description": "包含箭头指向的备用订阅地址及对应说明。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_008.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_008\\region_02_highlighted_backup_address.png",
+          "normalized_box": [
+            0.03,
+            0.45,
+            0.57,
+            0.63
+          ],
+          "pixel_box": [
+            30,
+            448,
+            569,
+            627
+          ],
+          "source_width": 999,
+          "source_height": 995
+        },
+        {
+          "image_order": 8,
+          "category": "backup_subscription_address",
+          "template_title": "公告中的备用订阅地址",
+          "diagnostic_goal": "确认用户使用的是哪一种订阅地址，以及是否需要切换备用地址。",
+          "region_name": "other_available_addresses",
+          "region_title": "其他可用地址",
+          "role": "primary",
+          "description": "保留公告中后续列出的其他地址，供故障切换时参考。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_008.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_008\\region_03_other_available_addresses.png",
+          "normalized_box": [
+            0.0,
+            0.57,
+            0.6,
+            1.0
+          ],
+          "pixel_box": [
+            0,
+            567,
+            599,
+            995
+          ],
+          "source_width": 999,
+          "source_height": 995
+        }
+      ]
+    },
+    {
+      "image_order": 9,
+      "category": "clash_subscription_import_error",
+      "title": "Clash Verge 导入订阅失败",
+      "diagnostic_goal": "识别 Clash Verge 导入订阅时出现的网络请求或 TLS 错误。",
+      "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_009.png",
+      "section_id": "4.3",
+      "section_title": "导入",
+      "block_index": 69,
+      "previous_text": "苹果用户极易下错软件，下成山寨软件。也会导致报错，查验对方的软件是否是正版软件\n如果浏览器和软件都没有问题，一般是地区运营商阻断，无法使用域名格式的订阅链接。索要订阅链接之后修改订阅链接头部为IP。举例：对方发送订阅链接为：https://aaa.cokecloud.net/config?token=*********************，修改为：https://8.217.98.112:1000/config?token=*********************。可以搭配“clash手动导入”和“火箭手动导入”快捷键指引对方使用新订阅链接导入。修改的IP在群里置顶找\n以下为典型的需要更换订阅链接的情况：",
+      "next_text": "4.4  安卓端\n4.4.1  官方客户端\n进行基本环境检查，节点全红询问对方网络环境，引导尝试换网，还不行的话依自身判断定位问题是线路问题/软件问题。如果是软件问题，引导对方更换使用clash meta。可搭配使用“教程”快捷键。示例：换软件，用官网的clash meta（发送教程快捷键）。如果确信是线路问题，反馈给后台。反馈内容：对话链接、对方网络环境、不能用的具体表现。然后前台回复反馈给后台了，等技术处理。",
+      "regions": [
+        {
+          "image_order": 9,
+          "category": "clash_subscription_import_error",
+          "template_title": "Clash Verge 导入订阅失败",
+          "diagnostic_goal": "识别 Clash Verge 导入订阅时出现的网络请求或 TLS 错误。",
+          "region_name": "clash_subscription_page",
+          "region_title": "Clash Verge 订阅页面",
+          "role": "context",
+          "description": "保留客户端名称、当前页面和订阅输入区域。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_009.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_01_clash_subscription_page.png",
+          "normalized_box": [
+            0.22,
+            0.03,
+            0.78,
+            1.0
+          ],
+          "pixel_box": [
+            292,
+            19,
+            1036,
+            640
+          ],
+          "source_width": 1328,
+          "source_height": 640
+        },
+        {
+          "image_order": 9,
+          "category": "clash_subscription_import_error",
+          "template_title": "Clash Verge 导入订阅失败",
+          "diagnostic_goal": "识别 Clash Verge 导入订阅时出现的网络请求或 TLS 错误。",
+          "region_name": "subscription_input",
+          "region_title": "订阅地址输入区域",
+          "role": "primary",
+          "description": "用于确认用户正在执行订阅导入操作及输入区域状态。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_009.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_02_subscription_input.png",
+          "normalized_box": [
+            0.34,
+            0.15,
+            0.76,
+            0.34
+          ],
+          "pixel_box": [
+            452,
+            96,
+            1009,
+            218
+          ],
+          "source_width": 1328,
+          "source_height": 640
+        },
+        {
+          "image_order": 9,
+          "category": "clash_subscription_import_error",
+          "template_title": "Clash Verge 导入订阅失败",
+          "diagnostic_goal": "识别 Clash Verge 导入订阅时出现的网络请求或 TLS 错误。",
+          "region_name": "import_error_message",
+          "region_title": "导入失败错误提示",
+          "role": "primary",
+          "description": "保留 failed to fetch、TLS verifier 等完整错误文字。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_009.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_009\\region_03_import_error_message.png",
+          "normalized_box": [
+            0.52,
+            0.15,
+            0.76,
+            0.36
+          ],
+          "pixel_box": [
+            691,
+            96,
+            1009,
+            230
+          ],
+          "source_width": 1328,
+          "source_height": 640
+        }
+      ]
+    },
+    {
+      "image_order": 10,
+      "category": "windows_manual_proxy",
+      "title": "Windows 手动代理配置",
+      "diagnostic_goal": "检查 Windows 系统代理是否开启，以及地址和端口是否正确。",
+      "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_010.png",
+      "section_id": "4.6",
+      "section_title": "Windows",
+      "block_index": 102,
+      "previous_text": "Windows\nWindows端最考验客服定位问题、排查问题、解决问题的能力。客服需要有丰富的电脑端代理软件使用经验，可以快速辨别一个软件（包括不同版本）是否支持我们的最新节点正在使用的协议，可以辨识出常见的代理工具（包括曾经使用人数很多，后来停止更新的软件），知道常见软件的默认端口号。以下文档内容建立在客服已经可以熟练使用常见代理软件的前提下。\n由于步骤相似原理基本相同（修改本机的系统代理设置），不区分不同软件的情况。先进行基本环境检查。如果软件看上去配置正常，但是ip111测试不正常，需要多一步检查——电脑系统代理设置，需要使用代理服务器开关为开。地址和端口全部正确。排查到这一步的时候基本已经解决了。如果目测配置正常，ip111测试谷歌一栏也是海外IP，用户还是无法使用，比如还是进不去google.com，可以尝试以下方向排查",
+      "next_text": "浏览器有问题，尝试更换浏览器\n浏览器有VPN插件，导致了干扰\n同时开启了两个代理软件导致互相干扰系统代理设置",
+      "regions": [
+        {
+          "image_order": 10,
+          "category": "windows_manual_proxy",
+          "template_title": "Windows 手动代理配置",
+          "diagnostic_goal": "检查 Windows 系统代理是否开启，以及地址和端口是否正确。",
+          "region_name": "proxy_settings_page",
+          "region_title": "Windows 代理设置页面",
+          "role": "context",
+          "description": "保留自动代理和手动代理两部分的整体设置状态。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_010.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_010\\region_01_proxy_settings_page.png",
+          "normalized_box": [
+            0.2,
+            0.0,
+            0.7,
+            1.0
+          ],
+          "pixel_box": [
+            265,
+            0,
+            929,
+            891
+          ],
+          "source_width": 1327,
+          "source_height": 891
+        },
+        {
+          "image_order": 10,
+          "category": "windows_manual_proxy",
+          "template_title": "Windows 手动代理配置",
+          "diagnostic_goal": "检查 Windows 系统代理是否开启，以及地址和端口是否正确。",
+          "region_name": "manual_proxy_configuration",
+          "region_title": "手动代理配置",
+          "role": "primary",
+          "description": "包含代理开关、地址、端口、例外地址和保存按钮。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_010.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_010\\region_02_manual_proxy_configuration.png",
+          "normalized_box": [
+            0.21,
+            0.43,
+            0.66,
+            0.9
+          ],
+          "pixel_box": [
+            279,
+            383,
+            876,
+            802
+          ],
+          "source_width": 1327,
+          "source_height": 891
+        },
+        {
+          "image_order": 10,
+          "category": "windows_manual_proxy",
+          "template_title": "Windows 手动代理配置",
+          "diagnostic_goal": "检查 Windows 系统代理是否开启，以及地址和端口是否正确。",
+          "region_name": "proxy_address_and_port",
+          "region_title": "代理地址和端口",
+          "role": "primary",
+          "description": "重点读取 127.0.0.1 和 10808 等关键配置值。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_010.png",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_010\\region_03_proxy_address_and_port.png",
+          "normalized_box": [
+            0.21,
+            0.57,
+            0.43,
+            0.7
+          ],
+          "pixel_box": [
+            279,
+            508,
+            571,
+            624
+          ],
+          "source_width": 1327,
+          "source_height": 891
+        }
+      ]
+    },
+    {
+      "image_order": 11,
+      "category": "mac_app_store_account",
+      "title": "Mac App Store 账户退出入口",
+      "diagnostic_goal": "确认用户是否进入 App Store 商店菜单，以及能否找到退出登录入口。",
+      "full_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_011.jpg",
+      "section_id": "4.7",
+      "section_title": "MacOS",
+      "block_index": 119,
+      "previous_text": "和windows排查步骤基本相同，因为软件都是官方客户端和Clash Verge。但是系统代理设置更复杂。有两种高解决率的方式：\n仅开启clash verge，关闭系统代理，打开虚拟网卡模式、选择正确的节点\n删除其他软件使用shadowrocket（注意引导用户在App Store更换ID）",
+      "next_text": "卡/慢\n反馈卡或者慢的大多数是用户自身问题。协助排查，用户确实延迟非常高、出现集体卡/慢/短线及时反馈。\n解锁与IP质量",
+      "regions": [
+        {
+          "image_order": 11,
+          "category": "mac_app_store_account",
+          "template_title": "Mac App Store 账户退出入口",
+          "diagnostic_goal": "确认用户是否进入 App Store 商店菜单，以及能否找到退出登录入口。",
+          "region_name": "store_menu",
+          "region_title": "App Store 商店菜单",
+          "role": "context",
+          "description": "保留完整商店菜单，确认菜单入口和当前界面一致。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_011.jpg",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_011\\region_01_store_menu.png",
+          "normalized_box": [
+            0.38,
+            0.05,
+            0.88,
+            0.88
+          ],
+          "pixel_box": [
+            320,
+            45,
+            741,
+            797
+          ],
+          "source_width": 842,
+          "source_height": 906
+        },
+        {
+          "image_order": 11,
+          "category": "mac_app_store_account",
+          "template_title": "Mac App Store 账户退出入口",
+          "diagnostic_goal": "确认用户是否进入 App Store 商店菜单，以及能否找到退出登录入口。",
+          "region_name": "account_actions",
+          "region_title": "账户与退出登录",
+          "role": "primary",
+          "description": "重点保留账户和退出登录两个操作项。",
+          "source_image_path": "D:\\myproject\\AI Customer service Agent\\data\\docx_images\\可乐云客服操作文档_2aeb2725dab6\\image_011.jpg",
+          "crop_path": "D:\\myproject\\AI Customer service Agent\\data\\test_split_output\\reference_2aeb2725dab6\\image_011\\region_02_account_actions.png",
+          "normalized_box": [
+            0.39,
+            0.69,
+            0.87,
+            0.87
+          ],
+          "pixel_box": [
+            328,
+            625,
+            733,
+            788
+          ],
+          "source_width": 842,
+          "source_height": 906
+        }
+      ]
+    }
+  ]
+}

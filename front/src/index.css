@@ -489,6 +489,14 @@ button {
   margin: 0;
 }
 
+.message-bubble img {
+  display: block;
+  max-width: min(360px, 100%);
+  max-height: 360px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
 .message-bubble-assistant {
   border: 1px solid #e0e8ee;
   border-top-left-radius: 5px;
@@ -521,8 +529,8 @@ button {
 
 .composer-root {
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 10px 10px 17px;
   border: 1px solid #cad7e1;
   border-radius: 18px;
@@ -531,6 +539,95 @@ button {
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease;
+}
+
+.composer-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.composer-attachments:empty {
+  display: none;
+}
+
+.composer-attachments {
+  display: flex;
+  width: 100%;
+}
+
+.composer-attachment {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 9px;
+  width: min(310px, 100%);
+  padding: 6px;
+  border: 1px solid #d8e3e8;
+  border-radius: 12px;
+  background: #f6faf9;
+}
+
+.composer-attachment-preview,
+.composer-attachment-placeholder {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+}
+
+.composer-attachment-preview {
+  object-fit: cover;
+  background: #e8efef;
+}
+
+.composer-attachment-placeholder {
+  display: grid;
+  place-items: center;
+  color: #54736f;
+  background: #e8f1ef;
+}
+
+.composer-attachment-name {
+  overflow: hidden;
+  color: #334b58;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachment-remove,
+.composer-add-image {
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: #607582;
+  background: transparent;
+  cursor: pointer;
+}
+
+.composer-attachment-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.composer-attachment-remove:hover,
+.composer-add-image:hover:not(:disabled) {
+  color: #0d6259;
+  background: #e8f2f0;
+}
+
+.composer-add-image {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+}
+
+.composer-add-image:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .composer-root:focus-within {

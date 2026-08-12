@@ -24,7 +24,24 @@ function getLatestQuestion(
 
   return textPart?.type === "text"
     ? textPart.text
-    : "你的问题";
+    : "";
+}
+
+
+function getLatestImage(
+  messages: Parameters<ChatModelAdapter["run"]>[0]["messages"],
+): File | undefined {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "user");
+
+  if (latestUserMessage?.role !== "user") {
+    return undefined;
+  }
+
+  return latestUserMessage.attachments.find(
+    (attachment) => attachment.type === "image",
+  )?.file;
 }
 
 
@@ -39,11 +56,21 @@ function serializeMessages(
       return [];
     }
 
-    const content = message.content
+    const textContent = message.content
       .filter((part) => part.type === "text")
       .map((part) => part.text)
       .join("\n")
       .trim();
+
+    const hasImage = (
+      message.role === "user"
+      && message.attachments.some(
+        (attachment) => attachment.type === "image",
+      )
+    );
+
+    const content = textContent
+      || (hasImage ? "[已上传图片]" : "");
 
     if (!content) {
       return [];
@@ -63,6 +90,7 @@ function serializeMessages(
 export const demoChatAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
     const question = getLatestQuestion(messages);
+    const image = getLatestImage(messages);
 
     if (abortSignal.aborted) {
       return;
@@ -71,7 +99,7 @@ export const demoChatAdapter: ChatModelAdapter = {
     const response = await sendChatMessage({
       message: question,
       session_id: SESSION_ID,
-    });
+    }, image);
 
     if (abortSignal.aborted) {
       return;

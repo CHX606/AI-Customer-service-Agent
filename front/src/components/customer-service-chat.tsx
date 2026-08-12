@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  AttachmentPrimitive,
   AssistantRuntimeProvider,
   AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
+  SimpleImageAttachmentAdapter,
   ThreadPrimitive,
   useLocalRuntime,
+  type Attachment,
 } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -16,11 +20,13 @@ import {
   Cloud,
   Database,
   Headphones,
+  ImagePlus,
   MessageCircleMore,
   Plus,
   ShieldCheck,
   Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 import { demoChatAdapter } from "../lib/demo-chat-adapter";
 import {
@@ -30,6 +36,9 @@ import {
 
 
 const INITIAL_MESSAGES = loadStoredChatMessages();
+const IMAGE_ATTACHMENT_ADAPTER = (
+  new SimpleImageAttachmentAdapter()
+);
 
 
 function startNewConversation() {
@@ -98,6 +107,54 @@ function AssistantMessage() {
   );
 }
 
+function ComposerImageAttachment({
+  attachment,
+}: {
+  attachment: Attachment;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string>();
+
+  useEffect(() => {
+    if (!attachment.file) {
+      setPreviewUrl(undefined);
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(
+      attachment.file,
+    );
+
+    setPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [attachment.file]);
+
+  return (
+    <AttachmentPrimitive.Root className="composer-attachment">
+      {previewUrl ? (
+        <img
+          className="composer-attachment-preview"
+          src={previewUrl}
+          alt="待上传截图预览"
+        />
+      ) : (
+        <div className="composer-attachment-placeholder">
+          <ImagePlus size={18} />
+        </div>
+      )}
+      <span className="composer-attachment-name">
+        <AttachmentPrimitive.Name />
+      </span>
+      <AttachmentPrimitive.Remove
+        className="composer-attachment-remove"
+        aria-label="移除图片"
+      >
+        <X size={15} />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+}
+
 function Welcome() {
   return (
     <section className="welcome" aria-labelledby="welcome-title">
@@ -131,15 +188,44 @@ function Composer() {
   return (
     <div className="composer-area">
       <ComposerPrimitive.Root className="composer-root">
-        <ComposerPrimitive.Input
-          className="composer-input"
-          aria-label="向智能客服提问"
-          placeholder="输入你的问题，例如：续费后为什么没有重置流量？"
-          rows={1}
-        />
-        <ComposerPrimitive.Send className="composer-send" aria-label="发送消息">
-          <ArrowUp size={20} strokeWidth={2.3} />
-        </ComposerPrimitive.Send>
+        <div className="composer-attachments">
+          <ComposerPrimitive.Attachments>
+            {({ attachment }) => (
+              <ComposerImageAttachment
+                attachment={attachment}
+              />
+            )}
+          </ComposerPrimitive.Attachments>
+        </div>
+
+        <div className="composer-input-row">
+          <AuiIf
+            condition={(state) => (
+              state.composer.attachments.length === 0
+            )}
+          >
+            <ComposerPrimitive.AddAttachment
+              className="composer-add-image"
+              aria-label="上传故障截图"
+              title="上传故障截图"
+              multiple={false}
+            >
+              <ImagePlus size={19} strokeWidth={2} />
+            </ComposerPrimitive.AddAttachment>
+          </AuiIf>
+          <ComposerPrimitive.Input
+            className="composer-input"
+            aria-label="向智能客服提问"
+            placeholder="描述问题，或上传故障截图"
+            rows={1}
+          />
+          <ComposerPrimitive.Send
+            className="composer-send"
+            aria-label="发送消息"
+          >
+            <ArrowUp size={20} strokeWidth={2.3} />
+          </ComposerPrimitive.Send>
+        </div>
       </ComposerPrimitive.Root>
       <p className="composer-note">AI 回答可能存在误差，重要信息请以官方说明为准。</p>
     </div>
@@ -261,6 +347,9 @@ export function CustomerServiceChat() {
     demoChatAdapter,
     {
       initialMessages: INITIAL_MESSAGES,
+      adapters: {
+        attachments: IMAGE_ATTACHMENT_ADAPTER,
+      },
     },
   );
 
