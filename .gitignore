@@ -1,0 +1,34 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!infra/**/.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend
+front/node_modules/
+front/dist/
+front/build/
+front/*.tsbuildinfo
+front/.dev-server-*.log
+
+# Runtime data and generated artifacts
+data/
+tmp/
+output/
+evaluation/results/*
+!evaluation/results/.gitkeep
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
