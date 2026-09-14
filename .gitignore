@@ -9,6 +9,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest_tmp*/
 .coverage
 htmlcov/
 
@@ -18,6 +19,8 @@ front/dist/
 front/build/
 front/*.tsbuildinfo
 front/.dev-server-*.log
+front/vite.config.js
+front/vite.config.d.ts
 
 # Runtime data and generated artifacts
 data/
@@ -31,4 +34,3 @@ evaluation/results/*
 .idea/
 .DS_Store
 Thumbs.db
-

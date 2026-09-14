@@ -1,0 +1,12 @@
+[project]
+name = "ai-customer-service-agent"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+
+markers = ["live_model: 真实模型集成测试，需要网络和有效模型配置"]

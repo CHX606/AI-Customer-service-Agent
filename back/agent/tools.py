@@ -4,7 +4,7 @@
 
 from langchain_core.tools import tool
 
-from back.rag.retriever import retrieve_documents
+from back.knowledge.retrieval.service import retrieve_documents
 
 @tool
 def search_knowledge_base(question:str) -> str:

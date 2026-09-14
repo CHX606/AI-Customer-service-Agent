@@ -1,6 +1,9 @@
+"""命令行运行智能客服主程序。"""
+
 from langchain_core.messages import HumanMessage
 
-from back.agent.graph import customer_service_graph
+from back.agent.workflow.graph import customer_service_graph
+from back.tenant.service import get_tenant_profile, init_tenant_system
 
 
 EXIT_COMMANDS = {
@@ -13,8 +16,10 @@ EXIT_COMMANDS = {
 
 def main():
     """启动命令行客服程序。"""
+    init_tenant_system()
+    profile = get_tenant_profile("default")
 
-    print("可乐云 AI 客服已启动")
+    print(f"=== {profile.company_name} {profile.assistant_name} 已启动 ===")
     print("输入“退出”可以结束对话")
 
     messages = []
@@ -41,6 +46,7 @@ def main():
         try:
             result = customer_service_graph.invoke(
                 {
+                    "tenant_id": "default",
                     "messages": request_messages,
                 }
             )
@@ -50,10 +56,9 @@ def main():
             continue
 
         messages = result["messages"]
-
         final_answer = messages[-1].content
 
-        print("\nAI 客服：", final_answer)
+        print(f"\n{profile.assistant_name}：", final_answer)
 
 
 if __name__ == "__main__":
