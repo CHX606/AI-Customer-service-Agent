@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "name": "可乐云客服追问闭环测试集",
+  "description": "验证首轮信息不足时能否合理追问，并在用户补充信息后使用同一会话上下文给出最终解决方案。",
+  "thresholds": {
+    "first_turn_followup_rate": 0.85,
+    "final_resolution_rate": 0.85,
+    "context_retention_rate": 0.9,
+    "error_rate": 0.0,
+    "final_answer_p95_ms": 10000
+  },
+  "cases": [
+    {
+      "id": "clarify_purchase_to_windows",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "我已经买了，怎么还是用不了？",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "套餐已经到账，Windows 11 用的是 Clash Verge，订阅也导入了，节点有延迟，显示连接成功但浏览器打不开网页，没有报错。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["Windows", "Clash"], ["系统代理", "Tun", "节点", "浏览器"]],
+          "forbidden_repeat_groups": [["什么设备", "哪个设备"], ["什么软件", "哪个客户端", "软件名称"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_node_to_shadowrocket",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "节点不能用。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "iPhone 上用的是 Shadowrocket，订阅刚更新，所有节点都变红并且延迟测试超时，Wi-Fi 和手机流量都试过了。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["Shadowrocket", "小火箭"], ["节点", "超时", "udptest", "hysteria2"]],
+          "forbidden_repeat_groups": [["什么设备", "哪个设备"], ["什么软件", "哪个客户端"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_software_to_import",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "软件报错了，怎么办？",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "Windows 11、Chrome 浏览器、最新版 Clash Verge，点击网站的一键导入完全没反应，客户端订阅列表还是空的。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["订阅", "导入"], ["浏览器", "手动", "链接"]],
+          "forbidden_repeat_groups": [["什么设备", "哪个设备"], ["什么软件", "哪个客户端"], ["什么浏览器", "哪个浏览器"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_site_to_chatgpt_blank",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "网站打不开。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "只有 ChatGPT 登录页一直空白，刷新也没内容；其他外网网站正常。Windows 11 的 Chrome，用新加坡节点，节点延迟正常。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["地区", "IP", "验证", "提示"]],
+          "forbidden_repeat_groups": [["哪个网站", "什么网站"], ["什么设备", "哪个设备"], ["什么浏览器", "哪个浏览器"]]
+        },
+        {
+          "message": "没有任何地区不可用、IP 风险或账号验证提示，就是整个登录页面纯空白。其他网站仍然正常。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["ChatGPT", "官方"], ["浏览器", "缓存", "Cookie", "无痕", "扩展", "节点", "网络"]],
+          "forbidden_repeat_groups": [["是否显示地区不可用", "是否显示IP风险", "是否显示账号验证"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_still_to_telegram",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "还是不行啊。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "是 Telegram 一直显示 Connecting，消息发不出去；其他外网应用正常。Windows 11，系统代理已经开启，当前节点有正常延迟。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["Telegram"], ["Connecting", "连接"], ["节点", "系统代理", "网络"]],
+          "forbidden_repeat_groups": [["哪一部分", "什么问题"], ["什么设备", "哪个设备"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_login_to_x",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "登录不了，怎么办？",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "是 X，也就是 Twitter。Windows 的 Chrome，网页能打开，但输入账号密码后一直转圈，没有验证码提示，节点延迟正常。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["X", "Twitter"], ["浏览器", "缓存", "Cookie", "无痕"], ["节点", "网络"]],
+          "forbidden_repeat_groups": [["哪个平台", "什么平台"], ["什么设备", "哪个设备"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_video_to_youtube",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "视频看不了。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "是 YouTube，网页可以打开，但所有视频都一直缓冲。Windows 的 Chrome，其他网站正常，当前日本节点延迟正常。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["YouTube"], ["视频", "缓冲"], ["节点", "线路", "网络"]],
+          "forbidden_repeat_groups": [["哪个视频", "什么视频", "哪个平台"], ["什么设备", "哪个设备"]]
+        }
+      ]
+    },
+    {
+      "id": "clarify_line_to_all_timeout",
+      "category": "clarification_resolution",
+      "turns": [
+        {
+          "message": "线路好像有问题。",
+          "expected_behavior": "clarify",
+          "expected_retrieval": false,
+          "source_expectation": "no_retrieval",
+          "required_keyword_groups": []
+        },
+        {
+          "message": "iPhone 小火箭已经成功导入订阅，但所有线路都显示红色 timeout，延迟数字一个也没有，Wi-Fi 和手机流量都一样。",
+          "expected_behavior": "answer",
+          "expected_retrieval": true,
+          "source_expectation": "knowledge_base",
+          "required_keyword_groups": [["小火箭", "Shadowrocket"], ["节点", "线路", "超时", "timeout"]],
+          "forbidden_repeat_groups": [["什么设备", "哪个设备"], ["什么软件", "哪个客户端"], ["全部节点还是", "所有节点还是"]]
+        }
+      ]
+    }
+  ]
+}

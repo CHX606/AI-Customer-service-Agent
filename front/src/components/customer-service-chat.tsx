@@ -1,361 +1,177 @@
-"use client";
+import { AssistantRuntimeProvider, SimpleImageAttachmentAdapter, ThreadPrimitive, useAuiState, useLocalRuntime } from "@assistant-ui/react";
+import { Conversations } from "@ant-design/x";
+import { App, Avatar, Badge, Button, Divider, Drawer, Dropdown, Flex, Form, Grid, Input, Modal, Spin, Tooltip, Typography, type InputRef } from "antd";
+import { ArrowDown, Cloud, Download, Menu, MessageCircleMore, Moon, MoreHorizontal, Plus, Settings, SquarePen, Sun, Trash2 } from "lucide-react";
+import { lazy, Suspense, useRef, useState } from "react";
+import { useBackendProfile } from "../hooks/use-backend-profile";
+import { useConversations } from "../hooks/use-conversations";
+import { chatAdapter } from "../lib/chat-adapter";
+import { exportChatHistory, loadStoredChatMessages, MAX_CONVERSATION_TITLE_LENGTH, renameConversation, type Conversation } from "../lib/chat-storage";
+import { FeatureBoundary } from "./feature-boundary";
+import { Composer } from "./chat/composer";
+import { UserMessage, AssistantMessage } from "./chat/messages";
+import { ProfileContext } from "./chat/profile-context";
+import { Welcome } from "./chat/welcome";
 
-import {
-  AttachmentPrimitive,
-  AssistantRuntimeProvider,
-  AuiIf,
-  ComposerPrimitive,
-  MessagePrimitive,
-  SimpleImageAttachmentAdapter,
-  ThreadPrimitive,
-  useLocalRuntime,
-  type Attachment,
-} from "@assistant-ui/react";
-import { useEffect, useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  Bot,
-  Check,
-  Cloud,
-  Database,
-  Headphones,
-  ImagePlus,
-  MessageCircleMore,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  X,
-} from "lucide-react";
-import { demoChatAdapter } from "../lib/demo-chat-adapter";
-import {
-  loadStoredChatMessages,
-  resetStoredChatSession,
-} from "../lib/chat-storage";
-
-
+const AdminSettings = lazy(() => import("./admin-settings").then((module) => ({ default: module.AdminSettings })));
 const INITIAL_MESSAGES = loadStoredChatMessages();
-const IMAGE_ATTACHMENT_ADAPTER = (
-  new SimpleImageAttachmentAdapter()
-);
+const IMAGE_ATTACHMENT_ADAPTER = new SimpleImageAttachmentAdapter();
+type AppearanceProps = { theme: "light" | "dark"; onThemeToggle: () => void };
 
+function ChatWorkspace({ theme, onThemeToggle }: AppearanceProps) {
+  const { message } = App.useApp();
+  const screens = Grid.useBreakpoint();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [hasOpenedAdmin, setHasOpenedAdmin] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Conversation | null>(null);
+  const [renameForm] = Form.useForm<{ title: string }>();
+  const renameInput = useRef<InputRef>(null);
+  const isEmpty = useAuiState((state) => state.thread.isEmpty);
+  const { profile, isBackendOnline, loadProfile } = useBackendProfile();
+  const { activeId, conversations, deleteTarget, setDeleteTarget, handleNewConversation, handleSwitchConversation, handleConfirmDelete } = useConversations(setIsSidebarOpen);
 
-function startNewConversation() {
-  const confirmed = window.confirm(
-    "新建对话会清除当前浏览器中保存的聊天记录，是否继续？",
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  resetStoredChatSession();
-  window.location.reload();
-}
-
-const suggestions = [
-  {
-    title: "续费与流量",
-    prompt: "续费之后为什么流量没有重置？",
-  },
-  {
-    title: "账号问题",
-    prompt: "忘记账号或密码应该怎么办？",
-  },
-  {
-    title: "软件无法使用",
-    prompt: "软件突然不能使用了，应该如何排查？",
-  },
-];
-
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root className="message-row message-row-user">
-      <div className="message-avatar message-avatar-user" aria-hidden="true">
-        <UserRound size={17} strokeWidth={2} />
-      </div>
-      <div className="message-column message-column-user">
-        <span className="message-author">你</span>
-        <div className="message-bubble message-bubble-user">
-          <MessagePrimitive.Parts />
+  const openAdmin = () => {
+    setIsSidebarOpen(false);
+    setHasOpenedAdmin(true);
+    setIsAdminOpen(true);
+  };
+  const handleExport = () => {
+    if (exportChatHistory(profile.company_name)) message.success("对话记录已导出");
+    else message.info("当前暂无可导出的聊天记录");
+  };
+  const sidebar = (
+    <Flex vertical className="sidebar-content">
+      <Flex align="center" gap={12} className="brand-lockup">
+        <Avatar shape="square" size={42} icon={<Cloud size={23} />} className="brand-avatar" />
+        <div className="brand-info">
+          <Typography.Text strong>{profile.brand_name_en || profile.company_name}</Typography.Text>
+          <Typography.Text type="secondary" className="brand-caption">{profile.company_name} · 客服工作台</Typography.Text>
         </div>
-      </div>
-    </MessagePrimitive.Root>
+      </Flex>
+      <Button type="primary" block icon={<Plus size={18} />} onClick={handleNewConversation}>新建对话</Button>
+      <Divider className="sidebar-divider" />
+      <Typography.Text type="secondary" className="sidebar-caption">历史会话</Typography.Text>
+      <Conversations
+        className="conversation-list"
+        activeKey={activeId}
+        onActiveChange={handleSwitchConversation}
+        items={conversations.map((conversation) => ({ key: conversation.id, label: conversation.title, icon: <MessageCircleMore size={16} /> }))}
+        menu={(item) => ({
+          items: [
+            { key: "rename", label: "重命名", icon: <SquarePen size={15} /> },
+            { key: "delete", label: "删除会话", icon: <Trash2 size={15} />, danger: true },
+          ],
+          onClick: ({ key }) => {
+            const target = conversations.find((conversation) => conversation.id === item.key);
+            if (!target) return;
+            if (key === "rename") {
+              renameForm.resetFields();
+              renameForm.setFieldsValue({ title: target.title });
+              setRenameTarget(target);
+              setIsSidebarOpen(false);
+            } else if (key === "delete") setDeleteTarget(target);
+          },
+        })}
+      />
+      <Flex vertical gap={8} className="sidebar-tools">
+        <Button icon={<Settings size={16} />} onClick={openAdmin} block>企业资料与知识库</Button>
+        <Button type="text" icon={<Download size={16} />} onClick={handleExport} block>导出对话记录</Button>
+      </Flex>
+    </Flex>
   );
-}
-
-function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="message-row message-row-assistant">
-      <div
-        className="message-avatar message-avatar-assistant"
-        aria-hidden="true"
-      >
-        <Bot size={18} strokeWidth={2} />
-      </div>
-      <div className="message-column">
-        <div className="message-author-line">
-          <span className="message-author">可乐云智能客服</span>
-          <span className="assistant-badge">AI</span>
-        </div>
-        <div className="message-bubble message-bubble-assistant">
-          <MessagePrimitive.Parts />
-        </div>
-      </div>
-    </MessagePrimitive.Root>
-  );
-}
-
-function ComposerImageAttachment({
-  attachment,
-}: {
-  attachment: Attachment;
-}) {
-  const [previewUrl, setPreviewUrl] = useState<string>();
-
-  useEffect(() => {
-    if (!attachment.file) {
-      setPreviewUrl(undefined);
-      return undefined;
-    }
-
-    const objectUrl = URL.createObjectURL(
-      attachment.file,
-    );
-
-    setPreviewUrl(objectUrl);
-
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [attachment.file]);
-
-  return (
-    <AttachmentPrimitive.Root className="composer-attachment">
-      {previewUrl ? (
-        <img
-          className="composer-attachment-preview"
-          src={previewUrl}
-          alt="待上传截图预览"
-        />
-      ) : (
-        <div className="composer-attachment-placeholder">
-          <ImagePlus size={18} />
-        </div>
-      )}
-      <span className="composer-attachment-name">
-        <AttachmentPrimitive.Name />
-      </span>
-      <AttachmentPrimitive.Remove
-        className="composer-attachment-remove"
-        aria-label="移除图片"
-      >
-        <X size={15} />
-      </AttachmentPrimitive.Remove>
-    </AttachmentPrimitive.Root>
-  );
-}
-
-function Welcome() {
-  return (
-    <section className="welcome" aria-labelledby="welcome-title">
-      <div className="welcome-icon" aria-hidden="true">
-        <Sparkles size={25} strokeWidth={1.8} />
-      </div>
-      <p className="welcome-eyebrow">知识库智能问答</p>
-      <h1 id="welcome-title">你好，我是可乐云智能客服</h1>
-      <p className="welcome-description">
-        我会优先检索客服知识库，再根据相关资料回答你的问题。
-      </p>
-
-      <div className="suggestion-grid" aria-label="常见问题">
-        {suggestions.map((suggestion) => (
-          <ThreadPrimitive.Suggestion
-            className="suggestion-card"
-            key={suggestion.title}
-            prompt={suggestion.prompt}
-            send
-          >
-            <span>{suggestion.title}</span>
-            <small>{suggestion.prompt}</small>
-          </ThreadPrimitive.Suggestion>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Composer() {
-  return (
-    <div className="composer-area">
-      <ComposerPrimitive.Root className="composer-root">
-        <div className="composer-attachments">
-          <ComposerPrimitive.Attachments>
-            {({ attachment }) => (
-              <ComposerImageAttachment
-                attachment={attachment}
-              />
-            )}
-          </ComposerPrimitive.Attachments>
-        </div>
-
-        <div className="composer-input-row">
-          <AuiIf
-            condition={(state) => (
-              state.composer.attachments.length === 0
-            )}
-          >
-            <ComposerPrimitive.AddAttachment
-              className="composer-add-image"
-              aria-label="上传故障截图"
-              title="上传故障截图"
-              multiple={false}
-            >
-              <ImagePlus size={19} strokeWidth={2} />
-            </ComposerPrimitive.AddAttachment>
-          </AuiIf>
-          <ComposerPrimitive.Input
-            className="composer-input"
-            aria-label="向智能客服提问"
-            placeholder="描述问题，或上传故障截图"
-            rows={1}
-          />
-          <ComposerPrimitive.Send
-            className="composer-send"
-            aria-label="发送消息"
-          >
-            <ArrowUp size={20} strokeWidth={2.3} />
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-      <p className="composer-note">AI 回答可能存在误差，重要信息请以官方说明为准。</p>
-    </div>
-  );
-}
-
-function ChatWorkspace() {
-  return (
-    <main className="app-shell">
-      <aside className="product-sidebar">
-        <div>
-          <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
-              <Cloud size={22} strokeWidth={2} />
+    <ProfileContext.Provider value={profile}>
+      <main className="app-shell">
+        {screens.lg && <aside className="product-sidebar" aria-label="会话导航">{sidebar}</aside>}
+        <Drawer title="会话导航" placement="left" size={288} open={!screens.lg && isSidebarOpen} focusable={{ focusTriggerAfterClose: !renameTarget }}
+          onClose={() => setIsSidebarOpen(false)} styles={{ body: { padding: 20 } }}>{sidebar}</Drawer>
+        <section className="chat-panel" aria-label="智能客服对话">
+          <header className="chat-header">
+            {!screens.lg && <Button type="text" icon={<Menu size={20} />} aria-label="打开侧边菜单" onClick={() => setIsSidebarOpen(true)} />}
+            <div className="chat-heading">
+              <Typography.Title level={2}>{profile.assistant_name}</Typography.Title>
+              <Badge status={isBackendOnline ? "success" : "default"} text={isBackendOnline ? "客服在线" : "服务暂未连接"} />
             </div>
-            <span className="brand-console-title">Agent Console</span>
-          </div>
-
-          <div className="sidebar-section">
-            <button
-              className="new-conversation-button"
-              type="button"
-              onClick={startNewConversation}
-            >
-              <Plus size={18} strokeWidth={2.2} />
-              <span>新对话</span>
-            </button>
-
-            <p className="sidebar-label">当前会话</p>
-            <div className="conversation-item" aria-current="page">
-              <MessageCircleMore size={18} />
-              <span>智能客服咨询</span>
-            </div>
-          </div>
-
-          <div className="sidebar-section sidebar-capabilities">
-            <p className="sidebar-label">系统能力</p>
-            <div className="capability-item">
-              <Database size={17} />
-              <span>知识库检索</span>
-              <Check size={15} className="capability-check" />
-            </div>
-            <div className="capability-item">
-              <ShieldCheck size={17} />
-              <span>资料约束回答</span>
-              <Check size={15} className="capability-check" />
-            </div>
-            <div className="capability-item">
-              <Headphones size={17} />
-              <span>多轮客服对话</span>
-              <Check size={15} className="capability-check" />
-            </div>
-          </div>
-        </div>
-
-        <div className="sidebar-status">
-          <span className="status-dot" aria-hidden="true" />
-          <div>
-            <strong>前端演示模式</strong>
-            <span>尚未连接 FastAPI</span>
-          </div>
-        </div>
-      </aside>
-
-      <section className="chat-panel" aria-label="智能客服对话">
-        <header className="chat-header">
-          <div className="mobile-brand-mark" aria-hidden="true">
-            <Cloud size={19} />
-          </div>
-          <div className="chat-heading">
-            <h2>AI Customer Service Agent</h2>
-            <p>
-              <span className="header-status-dot" aria-hidden="true" />
-              知识库服务已就绪
-            </p>
-          </div>
-          <div className="demo-pill">
-            <Sparkles size={14} />
-            Demo
-          </div>
-        </header>
-
-        <ThreadPrimitive.Root className="thread-root">
-          <ThreadPrimitive.Viewport className="thread-viewport">
-            <AuiIf condition={(state) => state.thread.isEmpty}>
-              <Welcome />
-            </AuiIf>
-
-            <div className="message-list">
-              <ThreadPrimitive.Messages>
-                {({ message }) =>
-                  message.role === "user" ? (
-                    <UserMessage />
-                  ) : (
-                    <AssistantMessage />
-                  )
-                }
-              </ThreadPrimitive.Messages>
-            </div>
-
-            <ThreadPrimitive.ViewportFooter className="thread-footer">
-              <ThreadPrimitive.ScrollToBottom
-                className="scroll-to-bottom"
-                aria-label="滚动到最新消息"
-              >
-                <ArrowDown size={18} />
-              </ThreadPrimitive.ScrollToBottom>
-              <Composer />
-            </ThreadPrimitive.ViewportFooter>
-          </ThreadPrimitive.Viewport>
-        </ThreadPrimitive.Root>
-      </section>
-    </main>
+            <Flex align="center" gap={8} className="header-actions">
+              {screens.md && <Button icon={<Settings size={16} />} onClick={openAdmin}>管理后台</Button>}
+              <Tooltip title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}>
+                <Button type="text" icon={theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+                  onClick={onThemeToggle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} aria-pressed={theme === "dark"} />
+              </Tooltip>
+              <Dropdown trigger={["click"]} menu={{ items: [
+                ...(!screens.md ? [{ key: "admin", label: "企业资料与知识库", icon: <Settings size={16} />, onClick: openAdmin }] : []),
+                { key: "export", label: "导出对话记录", icon: <Download size={16} />, onClick: handleExport },
+              ] }}>
+                <Button type="text" icon={<MoreHorizontal size={20} />} aria-label="更多操作" />
+              </Dropdown>
+            </Flex>
+          </header>
+          <ThreadPrimitive.Root className={`thread-root ${isEmpty ? "thread-empty" : ""}`}>
+            <ThreadPrimitive.Viewport className="thread-viewport">
+              {isEmpty && <Welcome profile={profile} />}
+              {!isEmpty && <div className="message-list">
+                <ThreadPrimitive.Messages>
+                  {({ message: item }) => item.role === "user" ? <UserMessage /> : <AssistantMessage />}
+                </ThreadPrimitive.Messages>
+              </div>}
+              <ThreadPrimitive.ViewportFooter className="thread-footer">
+                <ThreadPrimitive.ScrollToBottom asChild>
+                  <Button shape="circle" className="scroll-to-bottom" icon={<ArrowDown size={18} />} aria-label="滚动到最新消息" />
+                </ThreadPrimitive.ScrollToBottom>
+                <Composer />
+              </ThreadPrimitive.ViewportFooter>
+            </ThreadPrimitive.Viewport>
+          </ThreadPrimitive.Root>
+        </section>
+        {hasOpenedAdmin && (
+          <FeatureBoundary name="管理后台" onClose={() => { setIsAdminOpen(false); setHasOpenedAdmin(false); }}>
+            <Suspense fallback={<Modal open={isAdminOpen} centered footer={null} title="管理后台" onCancel={() => setIsAdminOpen(false)}><Flex justify="center" className="loading-panel"><Spin /></Flex></Modal>}>
+              <AdminSettings isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} onProfileUpdated={loadProfile} />
+            </Suspense>
+          </FeatureBoundary>
+        )}
+        <Modal open={Boolean(renameTarget)} title="重命名会话" centered width={440} forceRender
+          okText="保存" cancelText="取消" onCancel={() => setRenameTarget(null)}
+          onOk={() => renameForm.submit()}
+          afterOpenChange={(open) => { if (open) renameInput.current?.focus({ cursor: "all" }); }}>
+          <Form form={renameForm} layout="vertical" requiredMark={false}
+            onFinish={({ title }) => {
+              if (!renameTarget) return;
+              try {
+                renameConversation(renameTarget.id, title);
+                setRenameTarget(null);
+                message.success("会话名称已更新");
+              } catch (error) {
+                message.error(error instanceof Error ? error.message : "重命名失败，请重试");
+              }
+            }}>
+            <Form.Item name="title" label="会话名称" rules={[
+              { required: true, whitespace: true, message: "请输入会话名称" },
+              { max: MAX_CONVERSATION_TITLE_LENGTH, message: `最多输入 ${MAX_CONVERSATION_TITLE_LENGTH} 个字符` },
+            ]}>
+              <Input ref={renameInput} maxLength={MAX_CONVERSATION_TITLE_LENGTH} showCount placeholder="输入会话名称" />
+            </Form.Item>
+          </Form>
+        </Modal>
+        <Modal open={Boolean(deleteTarget)} title="删除会话" centered width={440}
+          okText="确认删除" cancelText="取消" okButtonProps={{ danger: true }} confirmLoading={isDeleting}
+          onCancel={() => { if (!isDeleting) setDeleteTarget(null); }}
+          onOk={async () => {
+            setIsDeleting(true);
+            try { await handleConfirmDelete(); }
+            catch { message.error("删除会话失败，请重试"); }
+            finally { setIsDeleting(false); }
+          }}>
+          <Typography.Paragraph>确定删除「{deleteTarget?.title}」吗？删除后无法恢复。</Typography.Paragraph>
+        </Modal>
+      </main>
+    </ProfileContext.Provider>
   );
 }
 
-export function CustomerServiceChat() {
-  const runtime = useLocalRuntime(
-    demoChatAdapter,
-    {
-      initialMessages: INITIAL_MESSAGES,
-      adapters: {
-        attachments: IMAGE_ATTACHMENT_ADAPTER,
-      },
-    },
-  );
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <ChatWorkspace />
-    </AssistantRuntimeProvider>
-  );
+export function CustomerServiceChat(props: AppearanceProps) {
+  const runtime = useLocalRuntime(chatAdapter, { initialMessages: INITIAL_MESSAGES, adapters: { attachments: IMAGE_ATTACHMENT_ADAPTER } });
+  return <AssistantRuntimeProvider runtime={runtime}><FeatureBoundary name="客服界面"><ChatWorkspace {...props} /></FeatureBoundary></AssistantRuntimeProvider>;
 }

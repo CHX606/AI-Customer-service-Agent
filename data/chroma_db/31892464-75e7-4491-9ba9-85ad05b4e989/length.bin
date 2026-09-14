@@ -1,1 +1,0 @@
-invalid type: string "[图片诊断资料]\n诊断名称：Mac App Store 账户退出入口\n故障类别：mac_app_store_account\n诊断目标：确认用户是否进入 App Store 商店菜单，以及能否找到退出登录入口。\n图片识别信息：\n更新\n账户\n退出登录\n<返回\n重新载入页面\n搜索\n查看全部\n探索\n创作\n工作\n游戏\n开发\n类别", expected i
