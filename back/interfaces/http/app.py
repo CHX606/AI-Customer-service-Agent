@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from back.bootstrap import initialize_database, initialize_search, preload_models
+from back.core.features import image_features_enabled
 from back.domain.errors import ApplicationError, Conflict, DependencyUnavailable, InvalidRequest, NotFound, ProcessingFailed
 from back.interfaces.http.admin import router as admin_router
 from back.interfaces.http.chat import router as chat_router
@@ -43,7 +44,8 @@ def create_app() -> FastAPI:
     @application.get("/health")
     def health_check():
         checks = getattr(application.state, "startup_checks", {})
-        return {"status": "degraded" if "unavailable" in checks.values() else "ok", "version": "0.2.0"}
+        return {"status": "degraded" if "unavailable" in checks.values() else "ok", "version": "0.2.0",
+                "features": {"image_chat": image_features_enabled()}}
 
     application.include_router(public_router)
     application.include_router(admin_router)

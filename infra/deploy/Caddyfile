@@ -1,0 +1,53 @@
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	request_body {
+		max_size 25MB
+	}
+
+	# The current frontend has no admin-key form. Authenticate at the proxy,
+	# then inject the backend key only into authenticated admin requests.
+	@admin_api path /api/admin /api/admin/*
+	handle @admin_api {
+		basic_auth {
+			{$MANAGEMENT_USER} {$MANAGEMENT_PASSWORD_HASH}
+		}
+		uri strip_prefix /api
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8000} {
+			header_up -Authorization
+			header_up X-Admin-Key {$ADMIN_API_KEY}
+		}
+	}
+
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8000} {
+			header_up -X-Admin-Key
+			# NDJSON has unknown Content-Length and is streamed immediately.
+		}
+	}
+
+	# Opening /manage triggers the browser's native password prompt before
+	# loading the existing frontend. Use its top-right management button.
+	@manage path /manage /manage/*
+	handle @manage {
+		basic_auth {
+			{$MANAGEMENT_USER} {$MANAGEMENT_PASSWORD_HASH}
+		}
+		root * "{$WEB_ROOT:/srv}"
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle {
+		root * "{$WEB_ROOT:/srv}"
+		try_files {path} /index.html
+		file_server
+	}
+}

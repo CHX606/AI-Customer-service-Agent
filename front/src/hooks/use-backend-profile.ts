@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { checkBackendHealth } from "../api/chat";
+import { checkBackendStatus } from "../api/chat";
 import { DEFAULT_TENANT_ID, fetchPublicProfile } from "../api/profile";
 import { DEFAULT_FALLBACK_PROFILE } from "../lib/default-profile";
 import type { TenantPublicProfile } from "../types/profile";
 
 export function useBackendProfile() {
   const [isBackendOnline, setIsBackendOnline] = useState<boolean | null>(null);
+  const [imageChatEnabled, setImageChatEnabled] = useState(false);
   const [profile, setProfile] = useState<TenantPublicProfile>(
     DEFAULT_FALLBACK_PROFILE,
   );
@@ -19,8 +20,9 @@ export function useBackendProfile() {
   }, []);
 
   const checkHealth = useCallback(async () => {
-    const online = await checkBackendHealth();
+    const { online, imageChatEnabled: imagesEnabled } = await checkBackendStatus();
     setIsBackendOnline(online);
+    setImageChatEnabled(imagesEnabled);
     if (online) {
       loadProfile();
     }
@@ -33,5 +35,5 @@ export function useBackendProfile() {
   }, [checkHealth]);
 
 
-  return { profile, isBackendOnline, loadProfile, checkHealth };
+  return { profile, isBackendOnline, imageChatEnabled, loadProfile, checkHealth };
 }

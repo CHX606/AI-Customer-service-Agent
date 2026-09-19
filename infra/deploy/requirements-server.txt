@@ -1,0 +1,9 @@
+-r ../../requirements.txt
+# PaddleOCRVL needs the document parsing extra, not just the base OCR package.
+paddleocr[doc-parser]==3.7.0
+paddlex==3.7.2
+PyYAML==6.0.2
+sentencepiece==0.2.2
+# Avoid the newer kubernetes/PyYAML conflict in document parsing dependencies.
+kubernetes==35.0.0
+numpy==2.3.5

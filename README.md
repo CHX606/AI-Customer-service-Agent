@@ -2,6 +2,10 @@
 
 面向生产演进的多租户智能客服：SQLite 保存租户、知识源和语义缓存元数据，OpenSearch 持久化 BM25 与向量索引，并通过 RRF 和 CPU Reranker 完成混合检索。
 
+Linux 服务器全新部署见 [部署说明](DEPLOY.md)，交给服务器 Codex 的任务说明见 [CODEX_DEPLOY.md](CODEX_DEPLOY.md)。部署使用 `compose.deploy.yaml`，本地开发仍使用下方原有流程。
+
+2026-09-19 服务器部署后的源码同步说明见 [SYNC_GUIDE.md](SYNC_GUIDE.md)。当前服务器使用 GPT-5.5 API 识图和 `compose.low-memory.yaml`，本地 OCR 关闭；当前验收与运维以 [API_ONLY_DEPLOYMENT.md](API_ONLY_DEPLOYMENT.md) 为准，原始部署文档中的全本地模型方案不代表当前服务器配置。
+
 ## 存储与检索架构
 
 - SQLite：租户配置、知识源登记、索引状态和语义缓存元数据。

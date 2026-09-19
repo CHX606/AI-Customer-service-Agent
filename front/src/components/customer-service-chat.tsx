@@ -18,7 +18,7 @@ const INITIAL_MESSAGES = loadStoredChatMessages();
 const IMAGE_ATTACHMENT_ADAPTER = new SimpleImageAttachmentAdapter();
 type AppearanceProps = { theme: "light" | "dark"; onThemeToggle: () => void };
 
-function ChatWorkspace({ theme, onThemeToggle }: AppearanceProps) {
+function ChatWorkspace({ theme, onThemeToggle, backend }: AppearanceProps & { backend: ReturnType<typeof useBackendProfile> }) {
   const { message } = App.useApp();
   const screens = Grid.useBreakpoint();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -29,7 +29,7 @@ function ChatWorkspace({ theme, onThemeToggle }: AppearanceProps) {
   const [renameForm] = Form.useForm<{ title: string }>();
   const renameInput = useRef<InputRef>(null);
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
-  const { profile, isBackendOnline, loadProfile } = useBackendProfile();
+  const { profile, isBackendOnline, imageChatEnabled, loadProfile } = backend;
   const { activeId, conversations, deleteTarget, setDeleteTarget, handleNewConversation, handleSwitchConversation, handleConfirmDelete } = useConversations(setIsSidebarOpen);
 
   const openAdmin = () => {
@@ -120,7 +120,7 @@ function ChatWorkspace({ theme, onThemeToggle }: AppearanceProps) {
                 <ThreadPrimitive.ScrollToBottom asChild>
                   <Button shape="circle" className="scroll-to-bottom" icon={<ArrowDown size={18} />} aria-label="滚动到最新消息" />
                 </ThreadPrimitive.ScrollToBottom>
-                <Composer />
+                <Composer imageEnabled={imageChatEnabled} />
               </ThreadPrimitive.ViewportFooter>
             </ThreadPrimitive.Viewport>
           </ThreadPrimitive.Root>
@@ -172,6 +172,7 @@ function ChatWorkspace({ theme, onThemeToggle }: AppearanceProps) {
 }
 
 export function CustomerServiceChat(props: AppearanceProps) {
-  const runtime = useLocalRuntime(chatAdapter, { initialMessages: INITIAL_MESSAGES, adapters: { attachments: IMAGE_ATTACHMENT_ADAPTER } });
-  return <AssistantRuntimeProvider runtime={runtime}><FeatureBoundary name="客服界面"><ChatWorkspace {...props} /></FeatureBoundary></AssistantRuntimeProvider>;
+  const backend = useBackendProfile();
+  const runtime = useLocalRuntime(chatAdapter, { initialMessages: INITIAL_MESSAGES, adapters: backend.imageChatEnabled ? { attachments: IMAGE_ATTACHMENT_ADAPTER } : {} });
+  return <AssistantRuntimeProvider runtime={runtime}><FeatureBoundary name="客服界面"><ChatWorkspace {...props} backend={backend} /></FeatureBoundary></AssistantRuntimeProvider>;
 }

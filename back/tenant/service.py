@@ -89,6 +89,18 @@ def init_tenant_system() -> None:
         )
         save_knowledge_source(registered_source)
 
+        legacy_source = registered_source
+
+    # The admin indexer reads source files from the upload directory, including
+    # built-ins. Restore only an absent, unchanged packaged DOCX; never overwrite
+    # an existing file or substitute a different version for registered content.
+    if (legacy_source is not None and legacy_source.source_id == "legacy_kelecloud_docx"
+            and legacy_source.stored_filename == LEGACY_DOCX_PATH.name and LEGACY_DOCX_PATH.exists()
+            and legacy_source.content_hash == hashlib.sha256(LEGACY_DOCX_PATH.read_bytes()).hexdigest()):
+        stored_path = get_tenant_upload_dir("default", legacy_source.source_id) / legacy_source.stored_filename
+        if not stored_path.exists():
+            shutil.copy2(LEGACY_DOCX_PATH, stored_path)
+
     # 内置外网应用指南按独立数据源登记，便于单独更新和重建索引。
     if EXTERNAL_APPS_GUIDE_PATH.exists():
         content_bytes = EXTERNAL_APPS_GUIDE_PATH.read_bytes()

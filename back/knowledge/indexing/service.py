@@ -7,6 +7,7 @@
 from pathlib import Path
 
 from langchain_core.documents import Document
+from back.core.features import image_features_enabled, local_ocr_enabled
 
 from back.knowledge.images.documents import load_image_documents
 from back.knowledge.images.semantics import (
@@ -33,7 +34,8 @@ def _load_matching_reference_images(
 ) -> list[Document]:
     """当前默认参考 DOCX 重索时，把已验证的图片诊断结果一并入库。"""
     if (
-        source.tenant_id != "default"
+        not local_ocr_enabled()
+        or source.tenant_id != "default"
         or source.file_type.lower() != "docx"
         or not DOCUMENT_PATH.exists()
         or source.content_hash != compute_file_hash(DOCUMENT_PATH)
@@ -61,16 +63,18 @@ def _load_contextual_image_documents(
     file_path: Path,
     starting_chunk_index: int,
 ) -> list[Document]:
-    """为 DOCX 建立图片语义入口；单图失败时保留已验证 OCR 兜底。"""
+    """API-only 必须完整识别；本地 OCR 仅用于显式启用的混合模式。"""
 
-    if source.file_type.lower() != "docx":
+    if not image_features_enabled() or source.file_type.lower() != "docx":
         return []
 
     fallback_documents = _load_matching_reference_images(
         source,
         starting_chunk_index=starting_chunk_index,
-    )
+    ) if local_ocr_enabled() else []
     if not image_semantics_enabled():
+        if not local_ocr_enabled():
+            raise RuntimeError("API-only 图片建库需要启用 IMAGE_SEMANTIC_ENABLED")
         return fallback_documents
 
     ocr_by_order = {
@@ -85,6 +89,7 @@ def _load_contextual_image_documents(
         content_hash=source.content_hash,
         starting_chunk_index=starting_chunk_index,
         ocr_by_image_order=ocr_by_order,
+        require_all=not local_ocr_enabled(),
     )
 
     semantic_orders = {

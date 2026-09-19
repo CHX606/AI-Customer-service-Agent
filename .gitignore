@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 !infra/**/.env.example
+deployment-secrets.txt
+deployment-acceptance-state.json
+deployment-browser-*.png
+*-build-metadata.json
+/domain-change-*/
+/security-change-*/
 
 # Python
 .venv/

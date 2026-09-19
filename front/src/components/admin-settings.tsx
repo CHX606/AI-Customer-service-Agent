@@ -73,7 +73,7 @@ export function AdminSettings({ isOpen, onClose, onProfileUpdated }: AdminSettin
           <Typography.Text type="secondary">DOCX、PDF、TXT、Markdown · 单文件不超过 20MB</Typography.Text>
         </Flex>
       </Upload.Dragger>
-      <Typography.Text type="secondary" className="knowledge-hint">当前支持文档正文，文档中的图片暂不参与回答。</Typography.Text>
+      <Typography.Text type="secondary" className="knowledge-hint">支持文档正文；DOCX 图片会按服务器配置进行语义解析，PDF 暂仅提取文字。</Typography.Text>
       {uploadError && <Alert type="error" showIcon title={uploadError} />}
       <Flex justify="space-between" align="center" gap={12}>
         <Typography.Text strong>知识库文档 <Typography.Text type="secondary">({files.length})</Typography.Text></Typography.Text>

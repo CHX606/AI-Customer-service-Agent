@@ -1,0 +1,15 @@
+/opt/1panel/www/sites/ai-customer-service/log/access.log /opt/1panel/www/sites/ai-customer-service/log/error.log {
+    daily
+    maxsize 10M
+    rotate 7
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 root root
+    su root root
+    sharedscripts
+    postrotate
+        /usr/bin/docker exec 1Panel-openresty-gYvn nginx -s reopen >/dev/null 2>&1 || true
+    endscript
+}
