@@ -5,7 +5,7 @@ import { App, Button, Tooltip, Typography, type UploadFile } from "antd";
 import { ArrowUp, ImagePlus, Square } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 
-export function Composer() {
+export function Composer({ imageEnabled = false }: { imageEnabled?: boolean }) {
   const aui = useAui();
   const { message } = App.useApp();
   const text = useAuiState((state) => state.composer.text);
@@ -28,6 +28,7 @@ export function Composer() {
   }, [attachments]);
 
   const addImage = async (file: File) => {
+    if (!imageEnabled) { message.info("图片问答暂未开放，请直接输入文字问题。"); return; }
     if (isRunning || addingAttachment.current) return;
     if (!file.type.startsWith("image/")) { message.warning("请添加图片格式的截图"); return; }
     if (aui.composer.getState().attachments.length) { message.info("每次提问可附带一张截图，请先移除当前图片"); return; }
@@ -37,6 +38,10 @@ export function Composer() {
     finally { addingAttachment.current = false; }
   };
   const send = () => {
+    if (!imageEnabled && aui.composer.getState().attachments.length) {
+      message.info("图片问答暂未开放，请先移除图片并输入文字问题。");
+      return;
+    }
     if (!isRunning && aui.composer.getState().canSend) aui.composer.send();
   };
 
@@ -52,20 +57,20 @@ export function Composer() {
         onCancel={() => aui.thread.cancelRun()}
         loading={isRunning}
         autoSize={{ minRows: 1, maxRows: 6 }}
-        placeholder="描述你遇到的问题，或粘贴一张截图…"
+        placeholder={imageEnabled ? "描述你遇到的问题，或粘贴一张截图…" : "描述你遇到的问题…"}
         onPasteFile={(items) => { const image = Array.from(items).find((file) => file.type.startsWith("image/")); if (image) void addImage(image); }}
-        header={<Sender.Header open={files.length > 0} forceRender title="已添加截图" closable={false}>
+        header={imageEnabled || files.length > 0 ? <Sender.Header open={files.length > 0} forceRender title="已添加截图" closable={false}>
           <Attachments
             ref={attachmentPicker} accept="image/*" multiple={false} maxCount={1} items={files} disabled={isRunning}
             getDropContainer={() => dropContainer.current}
             beforeUpload={(file) => { void addImage(file); return false; }}
             onRemove={(file) => { void aui.composer.attachment({ id: file.uid }).remove(); return false; }}
           />
-        </Sender.Header>}
-        prefix={<Tooltip title="添加截图，支持拖拽和粘贴">
+        </Sender.Header> : undefined}
+        prefix={imageEnabled ? <Tooltip title="添加截图，支持拖拽和粘贴">
           <Button type="text" icon={<ImagePlus size={20} />} aria-label="上传故障截图"
             disabled={isRunning || attachments.length > 0} onClick={() => attachmentPicker.current?.select({ accept: "image/*", multiple: false })} />
-        </Tooltip>}
+        </Tooltip> : undefined}
         suffix={(_, { components: { SendButton, LoadingButton } }) => isRunning
           ? <Tooltip title="停止生成"><LoadingButton icon={<Square size={16} />} aria-label="停止生成" /></Tooltip>
           : <SendButton icon={<ArrowUp size={20} />} aria-label="发送消息" disabled={!canSend} />}

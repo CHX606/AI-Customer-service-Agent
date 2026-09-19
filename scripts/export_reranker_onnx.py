@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument(
         "--variant",
-        choices=["all", "o3", "int8"],
+        choices=["all", "fp32", "o3", "int8"],
         default="all",
     )
     parser.add_argument(

@@ -1,12 +1,15 @@
 """依赖组装入口；应用服务自身不选择数据库、模型或框架实现。"""
 
 from functools import lru_cache
+import logging
 import os
 from pathlib import Path
+import time
 from dotenv import load_dotenv
 
 from back.application.chat import ChatService
 from back.core.paths import DATA_DIR
+from back.core.features import local_ocr_enabled
 from back.infrastructure.agent import LangGraphEngine
 from back.infrastructure.persistence.sessions import SQLiteSessionRepository
 from back.infrastructure.services import SemanticAnswerCache, SQLiteTenantRepository
@@ -51,10 +54,27 @@ def initialize_search():
     if os.getenv("OPENSEARCH_BOOTSTRAP_ON_STARTUP", "1").lower() in {"0", "false", "no", "off"}:
         return
     from back.infrastructure.search.opensearch import ensure_search_backend
-    ensure_search_backend()
+    # Docker restarts containers independently on host boot. OpenSearch usually
+    # needs longer than Python; a transient outage must not become permanent
+    # startup degradation until someone manually restarts the backend again.
+    deadline = time.monotonic() + max(0, float(os.getenv("OPENSEARCH_STARTUP_RETRY_SECONDS", "180")))
+    while True:
+        try:
+            ensure_search_backend()
+            return
+        except Exception as error:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            logging.getLogger(__name__).warning("等待搜索服务启动：%s", type(error).__name__)
+            time.sleep(min(2.0, remaining))
 
 
 def preload_models():
+    # API-only deployments must not import or warm Paddle, even if preload is set.
+    if local_ocr_enabled() and os.getenv("PRELOAD_OCR_MODEL", "0").lower() in {"1", "true", "yes", "on"}:
+        from back.knowledge.images.parser import get_image_parser
+        get_image_parser()
     if os.getenv("PRELOAD_RAG_MODELS", "1").lower() in {"0", "false", "no", "off"}:
         return
     from back.knowledge.retrieval.runtime import warm_rag_models

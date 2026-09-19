@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+set -u
+
+failures=()
+allowed_tcp_ports='^(22|53|80|443|8080|8317|13001|25290|25500)$'
+allowed_udp_ports='^(53|443|51820)$'
+
+fail() {
+  failures+=("$1")
+}
+
+for service in ssh server-firewall wg-quick@wg0 docker 1panel-core 1panel-agent auditd; do
+  systemctl is-active --quiet "$service" || fail "service inactive: $service"
+done
+
+iptables -C INPUT -i eth0 -j SERVER-INPUT >/dev/null 2>&1 \
+  || fail "IPv4 SERVER-INPUT anchor missing"
+iptables -C INPUT -i lo -p tcp --dport 25290 -j ACCEPT >/dev/null 2>&1 \
+  || fail "1Panel loopback-only firewall exception missing"
+iptables -C INPUT -i wg0 -j SERVER-WG >/dev/null 2>&1 \
+  || fail "WireGuard management firewall anchor missing"
+iptables -C SERVER-INPUT -p udp --dport 51820 -j ACCEPT >/dev/null 2>&1 \
+  || fail "WireGuard UDP ingress rule missing"
+iptables -C SERVER-WG -s 10.77.0.2/32 -p tcp -m multiport --dports 22,25290 -j ACCEPT >/dev/null 2>&1 \
+  || fail "WireGuard management allow rule missing"
+iptables -C DOCKER-USER -j SERVER-DOCKER >/dev/null 2>&1 \
+  || fail "IPv4 SERVER-DOCKER anchor missing"
+ip6tables -C INPUT -i eth0 -j SERVER-INPUT >/dev/null 2>&1 \
+  || fail "IPv6 SERVER-INPUT anchor missing"
+ip6tables -C DOCKER-USER -j SERVER-DOCKER >/dev/null 2>&1 \
+  || fail "IPv6 SERVER-DOCKER anchor missing"
+
+sshd_effective=$(sshd -T 2>/dev/null) || fail "sshd effective config invalid"
+grep -qx 'permitrootlogin without-password' <<<"$sshd_effective" \
+  || fail "SSH root public-key login policy is not active"
+grep -qx 'passwordauthentication no' <<<"$sshd_effective" \
+  || fail "SSH password authentication is not disabled"
+grep -qx 'kbdinteractiveauthentication no' <<<"$sshd_effective" \
+  || fail "SSH keyboard-interactive authentication is not disabled"
+grep -qx 'pubkeyauthentication yes' <<<"$sshd_effective" \
+  || fail "SSH public-key authentication is not enabled"
+grep -qx 'authenticationmethods publickey' <<<"$sshd_effective" \
+  || fail "SSH authentication method is not restricted to publickey"
+grep -qx 'allowusers root' <<<"$sshd_effective" \
+  || fail "SSH AllowUsers is not restricted to root"
+
+panel_security_state=$(python3 -c 'import sqlite3; c=sqlite3.connect("file:/opt/1panel/db/core.db?mode=ro", uri=True); d=dict(c.execute("select key,value from settings where key in (\"SSL\",\"MFAStatus\",\"MFAInterval\",\"MFASecret\")")); print("|".join([d.get("SSL", ""), d.get("MFAStatus", ""), d.get("MFAInterval", ""), "configured" if d.get("MFASecret") else "missing"]))' 2>/dev/null || true)
+[[ "$panel_security_state" == 'Enable|Enable|30|configured' ]] \
+  || fail "1Panel HTTPS/MFA baseline is not active"
+
+sensitive_files=(
+  /etc/wireguard/wg0.conf
+  /www/axonhub/.env
+  /www/cliproxyapi/config.yaml
+  /opt/1panel/runtime/node/qujian-1panel/.env
+  /opt/1panel/apps/openresty/openresty/.env
+  /opt/1panel/apps/openresty/openresty/1pwaf/data/conf/.secret
+  /opt/1panel/apps/openresty/openresty/1pwaf/data/conf/token
+  /opt/1panel/secret/server.key
+  /opt/1panel/apps/openresty/openresty/conf/ssl/privkey.pem
+  /opt/1panel/www/sites/qujian/ssl/privkey.pem
+  /root/ai-customer-service/.env.production
+  /root/ai-customer-service/deployment-secrets.txt
+  /opt/1panel/www/sites/ai-customer-service/ssl/current/privkey.pem
+)
+for sensitive_file in "${sensitive_files[@]}"; do
+  if [[ ! -f "$sensitive_file" ]]; then
+    fail "sensitive file missing: $sensitive_file"
+    continue
+  fi
+  mode=$(stat -c '%a' "$sensitive_file" 2>/dev/null || true)
+  owner=$(stat -c '%U:%G' "$sensitive_file" 2>/dev/null || true)
+  [[ "$mode" == 600 ]] || fail "sensitive file mode is not 600: $sensitive_file ($mode)"
+  [[ "$owner" == root:root ]] || fail "sensitive file owner is not root:root: $sensitive_file ($owner)"
+done
+
+wg_listen_port=$(wg show wg0 listen-port 2>/dev/null || true)
+[[ "$wg_listen_port" == 51820 ]] || fail "WireGuard is not listening on UDP 51820"
+ip -4 address show dev wg0 2>/dev/null | grep -q 'inet 10\.77\.0\.1/24' \
+  || fail "WireGuard server address 10.77.0.1/24 is missing"
+wg_peer_count=$(wg show wg0 peers 2>/dev/null | awk 'NF { count++ } END { print count + 0 }')
+[[ "$wg_peer_count" == 1 ]] || fail "WireGuard peer count is not exactly one"
+
+world_writable=$(find /opt /www -xdev \( -type f -o -type d \) \
+  -perm -0002 -print -quit 2>/dev/null)
+[[ -z "$world_writable" ]] || fail "world-writable path detected: $world_writable"
+
+while IFS= read -r socket_line; do
+  local_address=$(awk '{print $4}' <<<"$socket_line")
+  port=${local_address##*:}
+  [[ "$port" =~ $allowed_tcp_ports ]] && continue
+
+  # Only the exact loopback bindings are approved, never these ports on a
+  # public or wildcard address. Docker metadata is checked independently below.
+  if [[ "$local_address" == 127.0.0.1:18080 || "$local_address" == 127.0.0.1:18443 ]]; then
+    continue
+  fi
+
+  # Codex opens an ephemeral command channel bound only to loopback. It is not
+  # reachable from the network, so do not treat it as a public listening port.
+  if [[ "$local_address" == 127.0.0.1:* && "$socket_line" == *'users:(("code-'* ]]; then
+    continue
+  fi
+  fail "unexpected TCP listening port: $port"
+done < <(ss -H -lntp)
+
+# UDP has no LISTEN state. Short-lived client sockets can appear as UNCONN, so
+# only flag an unknown port when it is present in two consecutive snapshots.
+while IFS= read -r port; do
+  [[ "$port" =~ $allowed_udp_ports ]] || fail "persistent unexpected UDP socket: $port"
+done < <(comm -12 \
+  <(ss -H -lunp | awk '{local=$4; sub(/^.*:/, "", local); print local}' | sort -un) \
+  <(sleep 1; ss -H -lunp | awk '{local=$4; sub(/^.*:/, "", local); print local}' | sort -un))
+
+if ss -H -lntup | awk '$5 ~ /:5432$/ {found=1} END {exit !found}'; then
+  fail "PostgreSQL is listening on a host socket"
+fi
+
+for container in axonhub-app axonhub-postgres cliproxyapi subconverter 1Panel-openresty-gYvn \
+  ai-customer-service-web-1 ai-customer-service-backend-1 ai-customer-service-opensearch-1; do
+  running=$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null || true)
+  [[ "$running" == true ]] || fail "container not running: $container"
+done
+
+while IFS= read -r container; do
+  case "$container" in
+    axonhub-app|axonhub-postgres|cliproxyapi|subconverter|1Panel-openresty-gYvn|ai-customer-service-web-1|ai-customer-service-backend-1|ai-customer-service-opensearch-1) ;;
+    *) fail "unapproved running container: $container" ;;
+  esac
+done < <(docker ps --format '{{.Names}}')
+
+# User-authorized temporary pause: data and the container remain, but an
+# unexpected restart is a drift event, not a healthy state to silently accept.
+qujian_running=$(docker inspect --format '{{.State.Running}}' qujian-1panel 2>/dev/null || true)
+[[ "$qujian_running" == false ]] || fail "qujian pause baseline changed: expected stopped container"
+
+python3 /opt/1panel/www/sites/ai-customer-service/security/check_runtime.py \
+  || fail "customer-service runtime isolation or health check failed"
+
+for retired_container in \
+  apple-pudding-main-apple-pudding-1 \
+  kiro-rs \
+  kiro-rs-2; do
+  if docker container inspect "$retired_container" >/dev/null 2>&1; then
+    fail "retired container reappeared: $retired_container"
+  fi
+done
+
+for retired_volume in \
+  apple-pudding-main_apple-pudding-data \
+  apple-pudding-main_apple-pudding-logs \
+  deploy_postgres_data \
+  deploy_redis_data \
+  deploy_sub2api_data; do
+  if docker volume inspect "$retired_volume" >/dev/null 2>&1; then
+    fail "retired data volume reappeared: $retired_volume"
+  fi
+done
+
+[[ "$(systemctl is-active s-ui.service 2>/dev/null || true)" == inactive ]] \
+  || fail "retired s-ui service is active"
+[[ "$(systemctl is-enabled s-ui.service 2>/dev/null || true)" == disabled ]] \
+  || fail "retired s-ui service is enabled"
+
+retired_sensitive_files=(
+  /opt/apple-pudding/apple-pudding-main2/apple-pudding-main/.env
+  /opt/apple-pudding/apple-pudding-main2/apple-pudding-main/.env.app-export.json
+  /root/sub2api/deploy/.env
+  /usr/local/s-ui/db/s-ui.db
+  /root/security-hardening-20260830T133713Z/opt/apple-pudding/apple-pudding-main2/apple-pudding-main/.env
+  /root/security-hardening-20260830T133713Z/root/sub2api/deploy/.env
+)
+for retired_sensitive_file in "${retired_sensitive_files[@]}"; do
+  [[ ! -e "$retired_sensitive_file" ]] \
+    || fail "retired sensitive data reappeared: $retired_sensitive_file"
+done
+
+retired_empty_dirs=(
+  /opt/apple-pudding/apple-pudding-main2/apple-pudding-main/data
+  /root/kiro.rs/config
+  /root/kiro.rs-2/config
+  /root/sub2api/deploy/data
+  /root/sub2api/deploy/postgres_data
+  /root/sub2api/deploy/redis_data
+  /usr/local/s-ui/db
+)
+for retired_empty_dir in "${retired_empty_dirs[@]}"; do
+  [[ -d "$retired_empty_dir" ]] || {
+    fail "retained empty runtime directory is missing: $retired_empty_dir"
+    continue
+  }
+  [[ -z "$(find "$retired_empty_dir" -xdev -mindepth 1 -print -quit 2>/dev/null)" ]] \
+    || fail "retired runtime data reappeared under: $retired_empty_dir"
+done
+
+[[ "$(stat -c '%U:%G %a' /var/lib/server-security/retired-assets-cleanup-20260831.marker 2>/dev/null || true)" == 'root:root 600' ]] \
+  || fail "retired-assets cleanup marker is missing or unsafe"
+
+live_restore=$(docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null || true)
+[[ "$live_restore" == true ]] || fail "Docker live-restore is not enabled"
+
+for container in axonhub-app qujian-1panel cliproxyapi subconverter; do
+  read_only=$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container" 2>/dev/null || true)
+  [[ "$read_only" == true ]] || fail "container root filesystem is writable: $container"
+  cap_drop=$(docker inspect --format '{{json .HostConfig.CapDrop}}' "$container" 2>/dev/null || true)
+  [[ "$cap_drop" == *ALL* ]] || fail "container has not dropped all capabilities: $container"
+done
+
+for container in axonhub-app axonhub-postgres qujian-1panel cliproxyapi subconverter 1Panel-openresty-gYvn; do
+  security_opt=$(docker inspect --format '{{json .HostConfig.SecurityOpt}}' "$container" 2>/dev/null || true)
+  [[ "$security_opt" == *no-new-privileges* ]] || fail "no-new-privileges missing: $container"
+done
+for container in axonhub-app axonhub-postgres; do
+  health=$(docker inspect --format '{{.State.Health.Status}}' "$container" 2>/dev/null || true)
+  [[ "$health" == healthy ]] || fail "container unhealthy: $container ($health)"
+done
+
+curl -fsS --max-time 10 http://127.0.0.1:80/ >/dev/null \
+  || fail "AxonHub local HTTP check failed"
+panel_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+  --resolve onepanel.chx1008.com:25290:127.0.0.1 \
+  https://onepanel.chx1008.com:25290/ || true)
+[[ "$panel_code" =~ ^[234][0-9]{2}$ ]] \
+  || fail "1Panel local HTTPS check returned ${panel_code:-no response}"
+# qujian availability/admin-page probes are suspended while it is deliberately
+# stopped. Keep its credential and certificate checks for a future resumption.
+acs_health=$(curl -fsS --max-time 15 --resolve ai.chx1008.com:443:127.0.0.1 \
+  https://ai.chx1008.com/api/health 2>/dev/null || true)
+python3 -c 'import json,sys; assert json.load(sys.stdin).get("status") == "ok"' \
+  <<<"$acs_health" >/dev/null 2>&1 || fail "customer-service local HTTPS health check failed"
+for admin_path in /manage /api/admin/profile?tenant_id=default; do
+  admin_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+    --resolve ai.chx1008.com:443:127.0.0.1 "https://ai.chx1008.com$admin_path" || true)
+  [[ "$admin_code" == 401 ]] || fail "customer-service anonymous admin rejection returned $admin_code"
+done
+
+acs_certificate=/opt/1panel/www/sites/ai-customer-service/ssl/current/fullchain.pem
+openssl x509 -checkend 1209600 -noout -in "$acs_certificate" >/dev/null 2>&1 \
+  || fail "customer-service certificate expires within 14 days or is unreadable"
+for acs_file in openresty-customer-service.conf login_guard.lua check_runtime.py cloudflare-realip.conf; do
+  case "$acs_file" in
+    openresty-customer-service.conf) acs_installed=/opt/1panel/www/conf.d/ai-customer-service.conf ;;
+    *) acs_installed="/opt/1panel/www/sites/ai-customer-service/security/$acs_file" ;;
+  esac
+  cmp -s "/root/ai-customer-service/infra/deploy/$acs_file" "$acs_installed" \
+    || fail "customer-service security configuration drift: $acs_file"
+done
+systemctl is-enabled --quiet ai-customer-service-certificate.timer \
+  && systemctl is-active --quiet ai-customer-service-certificate.timer \
+  || fail "customer-service certificate sync timer is not enabled and active"
+
+certificate=/opt/1panel/www/sites/qujian/ssl/fullchain.pem
+openssl x509 -checkend 1209600 -noout -in "$certificate" >/dev/null 2>&1 \
+  || fail "qujian certificate expires within 14 days or is unreadable"
+
+panel_certificate=/opt/1panel/secret/server.crt
+openssl x509 -checkend 1209600 -noout -in "$panel_certificate" >/dev/null 2>&1 \
+  || fail "1Panel certificate expires within 14 days or is unreadable"
+
+disk_percent=$(df --output=pcent / | tail -n 1 | tr -dc '0-9')
+[[ -n "$disk_percent" && "$disk_percent" -lt 85 ]] \
+  || fail "root filesystem usage is ${disk_percent:-unknown}%"
+
+backup_path=$(readlink -f /var/backups/server-security/latest 2>/dev/null || true)
+if [[ ! -d "$backup_path" ]]; then
+  fail "no completed local backup"
+else
+  backup_age=$(( $(date +%s) - $(stat -c %Y "$backup_path") ))
+  (( backup_age < 129600 )) || fail "latest local backup is older than 36 hours"
+  [[ -s "$backup_path/SHA256SUMS" && -s "$backup_path/axonhub.dump" ]] \
+    || fail "latest local backup is incomplete"
+fi
+
+offsite_config_dir=/etc/server-backup
+offsite_marker=/var/lib/server-security/offsite-last-success
+[[ $(stat -c '%U:%G %a' "$offsite_config_dir" 2>/dev/null || true) == 'root:root 700' ]] \
+  || fail "offsite backup config directory is not root:root mode 700"
+for offsite_secret in \
+  "$offsite_config_dir/restic-r2.env" \
+  "$offsite_config_dir/restic-password"; do
+  [[ $(stat -c '%U:%G %a' "$offsite_secret" 2>/dev/null || true) == 'root:root 600' ]] \
+    || fail "offsite backup credential is not root:root mode 600: $offsite_secret"
+done
+
+for offsite_timer in server-offsite-backup.timer server-offsite-maintenance.timer; do
+  systemctl is-enabled --quiet "$offsite_timer" \
+    || fail "offsite timer is not enabled: $offsite_timer"
+  systemctl is-active --quiet "$offsite_timer" \
+    || fail "offsite timer is not active: $offsite_timer"
+done
+
+if [[ ! -f "$offsite_marker" ]]; then
+  fail "no successful offsite backup marker"
+else
+  [[ $(stat -c '%U:%G %a' "$offsite_marker" 2>/dev/null || true) == 'root:root 600' ]] \
+    || fail "offsite backup marker is not root:root mode 600"
+  offsite_age=$(( $(date +%s) - $(stat -c %Y "$offsite_marker") ))
+  (( offsite_age < 129600 )) || fail "latest successful offsite backup is older than 36 hours"
+fi
+
+alert_config_dir=/etc/server-alert
+[[ $(stat -c '%U:%G %a' "$alert_config_dir" 2>/dev/null || true) == 'root:root 700' ]] \
+  || fail "Gmail alert config directory is not root:root mode 700"
+for alert_secret in \
+  "$alert_config_dir/gmail-sender" \
+  "$alert_config_dir/gmail-app-password" \
+  "$alert_config_dir/gmail-recipient"; do
+  [[ $(stat -c '%U:%G %a' "$alert_secret" 2>/dev/null || true) == 'root:root 600' ]] \
+    || fail "Gmail alert config is not root:root mode 600: $alert_secret"
+done
+for alert_script in \
+  /usr/local/sbin/server-security-alert \
+  /usr/local/sbin/server-gmail-alert-configure; do
+  [[ $(stat -c '%U:%G %a' "$alert_script" 2>/dev/null || true) == 'root:root 700' ]] \
+    || fail "Gmail alert script is not root:root mode 700: $alert_script"
+done
+for alert_source in \
+  server-security-check.service \
+  server-local-backup.service \
+  server-offsite-backup.service \
+  server-offsite-maintenance.service \
+  server-offsite-restore-test.service; do
+  failure_targets=$(systemctl show --property=OnFailure --value "$alert_source" 2>/dev/null || true)
+  success_targets=$(systemctl show --property=OnSuccess --value "$alert_source" 2>/dev/null || true)
+  [[ "$failure_targets" == *server-security-alert@* ]] \
+    || fail "Gmail failure alert is not attached: $alert_source"
+  [[ "$success_targets" == *server-security-alert-recovery@* ]] \
+    || fail "Gmail recovery alert is not attached: $alert_source"
+done
+
+if (( ${#failures[@]} > 0 )); then
+  printf 'SECURITY_CHECK_FAILED count=%d\n' "${#failures[@]}" >&2
+  printf '%s\n' "${failures[@]}" >&2
+  exit 1
+fi

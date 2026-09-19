@@ -1,0 +1,12 @@
+[Unit]
+Description=Check the AI customer service TLS certificate every hour
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=ai-customer-service-certificate.service
+
+[Install]
+WantedBy=timers.target

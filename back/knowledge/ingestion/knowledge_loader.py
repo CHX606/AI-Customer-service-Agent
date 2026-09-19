@@ -2,10 +2,11 @@
 
 from pathlib import Path
 from langchain_core.documents import Document
+from back.core.features import image_features_enabled, local_ocr_enabled
 
 from back.knowledge.images.documents import load_image_documents
-from back.knowledge.images.semantics import load_cached_image_semantic_documents
-from back.knowledge.ingestion.loader import load_documents, load_source_document
+from back.knowledge.images.semantics import load_cached_image_semantic_documents, load_required_docx_image_semantic_documents
+from back.knowledge.ingestion.loader import DOCUMENT_PATH, load_documents, load_source_document
 from back.knowledge.ingestion.splitter import split_documents, split_prebuilt_documents
 from back.tenant.service import (
     get_all_knowledge_sources,
@@ -23,10 +24,18 @@ def _load_legacy_documents(tenant_id: str) -> list[Document]:
         )
         for document in split_documents(word_documents)
     ]
-    if tenant_id != "default":
+    if tenant_id != "default" or not image_features_enabled():
         return text_chunks
 
     base_metadata = word_documents[0].metadata if word_documents else {}
+    if not local_ocr_enabled():
+        semantic_documents = load_required_docx_image_semantic_documents(
+            document_path=DOCUMENT_PATH, tenant_id=tenant_id,
+            source_id=str(base_metadata.get("source_id", "legacy_kelecloud_docx")),
+            content_hash=str(base_metadata.get("content_hash", "")),
+            starting_chunk_index=len(text_chunks),
+        )
+        return text_chunks + split_prebuilt_documents(semantic_documents, starting_chunk_index=len(text_chunks))
     raw_image_documents = []
     for document in load_image_documents():
         raw_image_documents.append(
@@ -90,11 +99,17 @@ def load_knowledge_documents(tenant_id: str = "default") -> list[Document]:
                 content_hash=source.content_hash,
             )
             file_chunks = split_documents(raw_docs)
-            cached_images = load_cached_image_semantic_documents(
+            cache_loader = load_cached_image_semantic_documents
+            cache_options = {}
+            if image_features_enabled() and not local_ocr_enabled() and file_path.suffix.lower() == ".docx":
+                cache_loader = load_required_docx_image_semantic_documents
+                cache_options["document_path"] = file_path
+            cached_images = cache_loader(
                 tenant_id=tenant_id,
                 source_id=source.source_id,
                 content_hash=source.content_hash,
                 starting_chunk_index=len(file_chunks),
+                **cache_options,
             )
             cached_image_chunks = split_prebuilt_documents(
                 cached_images,

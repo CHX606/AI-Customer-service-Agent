@@ -1,0 +1,35 @@
+# Resource limits for this 3 vCPU / 3915 MiB shared server.
+# Use together with compose.deploy.yaml.
+# User-approved API-only vision: knowledge images become cached semantic cards;
+# customer images support retrieval without loading or falling back to local OCR.
+services:
+  opensearch:
+    mem_limit: 1g
+    memswap_limit: 2g
+    cpus: 1.0
+    oom_score_adj: 300
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+
+  backend:
+    mem_limit: 2g
+    memswap_limit: 4g
+    cpus: 1.5
+    oom_score_adj: 500
+    environment:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      RERANKER_BATCH_SIZE: "1"
+      RERANKER_MAX_CONCURRENCY: "1"
+      IMAGE_FEATURES_ENABLED: "1"
+      IMAGE_SEMANTIC_ENABLED: "1"
+      LOCAL_OCR_ENABLED: "0"
+      PRELOAD_OCR_MODEL: "0"
+    healthcheck:
+      start_period: 180s
+
+  web:
+    mem_limit: 128m
+    memswap_limit: 256m
+    cpus: 0.5
+    oom_score_adj: 300

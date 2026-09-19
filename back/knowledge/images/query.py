@@ -3,9 +3,8 @@
 
 处理流程：
 图片字节校验
-→ PaddleOCR-VL 优先识别完整图片
-→ 整图识别不足时才按宽高比例生成重叠区域兜底
-→ OCR 文本去重
+→ 已知知识图片匹配，未知图片由视觉 API 理解
+→ 仅在明确启用本地 OCR 时允许本地兜底
 → 生成本次检索使用的查询文字
 
 所有中间图片和 OCR 文件都位于 TemporaryDirectory，函数
@@ -22,12 +21,8 @@ from time import monotonic
 import os
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from back.core.features import image_features_enabled, local_ocr_enabled
 
-from back.knowledge.images.parser import (
-    extract_ocr_text,
-    parse_image,
-    release_result_memory,
-)
 from back.knowledge.images.text_cleaner import (
     deduplicate_text_lines,
     is_ocr_text_sufficient,
@@ -60,6 +55,22 @@ MIN_VISUAL_SEMANTIC_CONFIDENCE = 0.35
 IMAGE_INFERENCE_LOCK = Lock()
 VISION_CIRCUIT_LOCK = Lock()
 _vision_unavailable_until = 0.0
+
+
+# Keep OCR imports lazy: text-only startup must not import PaddleOCR at all.
+def parse_image(*args, **kwargs):
+    from back.knowledge.images.parser import parse_image as parse
+    return parse(*args, **kwargs)
+
+
+def extract_ocr_text(results):
+    from back.knowledge.images.parser import extract_ocr_text as extract
+    return extract(results)
+
+
+def release_result_memory(results):
+    from back.knowledge.images.parser import release_result_memory as release
+    return release(results)
 
 
 class UserImageValidationError(ValueError):
@@ -322,6 +333,9 @@ def analyze_user_image(
 ) -> UserImageAnalysis:
     """已知图复用语义，未知图用强视觉模型，失败时再回退 OCR。"""
 
+    if not image_features_enabled():
+        raise RuntimeError("图片问答暂未开放，请直接输入文字问题。")
+
     image = _load_and_validate_image(image_bytes)
 
     try:
@@ -335,7 +349,7 @@ def analyze_user_image(
                 )
             except Exception as error:
                 semantic_match = None
-                print(f"已知图片语义匹配失败，将继续视觉理解：{error}")
+                print(f"已知图片语义匹配失败，将继续视觉理解：{type(error).__name__}")
 
             if semantic_match is not None:
                 matched_documents = semantic_match.documents
@@ -361,7 +375,7 @@ def analyze_user_image(
 
             if _vision_circuit_is_open():
                 visual_card = None
-                print("强视觉模型接口处于临时熔断状态，直接回退 OCR")
+                print("强视觉模型接口处于临时熔断状态")
             else:
                 try:
                     visual_card = understand_customer_image(
@@ -371,7 +385,7 @@ def analyze_user_image(
                 except Exception as error:
                     visual_card = None
                     _record_vision_failure()
-                    print(f"强视觉模型理解客户图片失败，将回退 OCR：{error}")
+                    print(f"强视觉模型理解客户图片失败：{type(error).__name__}")
 
             if (
                 visual_card is not None
@@ -386,6 +400,9 @@ def analyze_user_image(
                     understanding_strategy="vision_model",
                     semantic_text=format_customer_understanding(visual_card),
                 )
+
+        if not local_ocr_enabled():
+            raise RuntimeError("图片 API 暂时不可用或识别不可靠，请重试、上传清晰截图或直接描述问题。")
 
         layout = "full_image"
         processed_region_count = 1

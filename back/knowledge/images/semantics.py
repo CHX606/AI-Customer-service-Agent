@@ -2,7 +2,7 @@
 
 资料图片不会再只保存 OCR。入库时把整图和相邻正文交给强视觉模型，
 生成可检索的语义卡片；客户上传图片时先用 SHA256/dHash 命中卡片，
-未知图片才调用视觉模型，失败时由上层回退到 OCR。
+未知图片才调用视觉模型；API-only 部署禁止回退到本地 OCR。
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from back.core.llm import (
     get_image_understanding_model,
 )
 from back.core.paths import PROJECT_ROOT
+from back.core.features import image_features_enabled
 from back.knowledge.ingestion.docx.image_extractor import extract_docx_images
 from back.knowledge.ingestion.docx.models import ExtractedImageRecord
 
@@ -49,7 +50,7 @@ logger = logging.getLogger(__name__)
 def image_semantics_enabled() -> bool:
     """是否启用强视觉语义链路。"""
 
-    return os.getenv("IMAGE_SEMANTIC_ENABLED", "1").strip().lower() in {
+    return image_features_enabled() and os.getenv("IMAGE_SEMANTIC_ENABLED", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -403,6 +404,14 @@ def _context_sha256(record: ExtractedImageRecord, ocr_text: str) -> str:
     return sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _require_reliable_card(card: KnowledgeImageSemanticCard) -> None:
+    """Do not publish empty/uncertain cards as completed API-only knowledge."""
+    if not card.summary.strip() or card.confidence < 0.35:
+        raise ValueError("图片语义结果不完整或置信度不足")
+    if card.should_index and not card.visible_evidence:
+        raise ValueError("图片语义结果缺少可见证据")
+
+
 def get_or_create_knowledge_semantics(
     record: ExtractedImageRecord,
     *,
@@ -412,6 +421,7 @@ def get_or_create_knowledge_semantics(
     output_root: str | Path = IMAGE_SEMANTICS_ROOT,
     model: BaseChatModel | None = None,
     force: bool = False,
+    require_quality: bool = False,
 ) -> tuple[KnowledgeImageSemanticCard, ImageFingerprint, Path]:
     """按图片、上下文、模型和提示词版本缓存语义结果。"""
 
@@ -435,15 +445,16 @@ def get_or_create_knowledge_semantics(
                 and cached.get("model") == model_name
                 and cached.get("prompt_version") == PROMPT_VERSION
             ):
-                return (
-                    KnowledgeImageSemanticCard.model_validate(cached["semantic_card"]),
-                    fingerprint,
-                    cache_path,
-                )
+                card = KnowledgeImageSemanticCard.model_validate(cached["semantic_card"])
+                if require_quality:
+                    _require_reliable_card(card)
+                return card, fingerprint, cache_path
         except (OSError, json.JSONDecodeError, KeyError, ValueError):
             logger.warning("图片语义缓存无效，将重新生成：%s", cache_path)
 
     card = understand_knowledge_image(record, ocr_text=ocr_text, model=model)
+    if require_quality:
+        _require_reliable_card(card)
     cache_data = {
         "status": "completed",
         "prompt_version": PROMPT_VERSION,
@@ -566,10 +577,13 @@ def build_docx_image_semantic_documents(
     output_root: str | Path = IMAGE_SEMANTICS_ROOT,
     model: BaseChatModel | None = None,
     force: bool = False,
+    require_all: bool = False,
 ) -> list[Document]:
     """提取 DOCX 全部图片，并把有业务意义的语义卡片变成检索入口。"""
 
     if not image_semantics_enabled():
+        if require_all:
+            raise RuntimeError("API-only 图片建库需要启用 IMAGE_SEMANTIC_ENABLED")
         return []
 
     ocr_mapping = ocr_by_image_order or {}
@@ -587,8 +601,14 @@ def build_docx_image_semantic_documents(
                 output_root=output_root,
                 model=model,
                 force=force,
+                require_quality=require_all,
             )
         except Exception as error:
+            if require_all:
+                # Preserve completed caches for retry, but never publish a partial source.
+                raise RuntimeError(
+                    f"图片 {record.image_order} 的 API 预处理未完成（{type(error).__name__}），请重试建库"
+                ) from error
             logger.exception(
                 "图片语义预处理失败，跳过当前图片",
                 extra={"source_id": source_id, "image_order": record.image_order},
@@ -636,6 +656,55 @@ def build_docx_image_semantic_documents(
             )
         )
 
+    return documents
+
+
+def load_required_docx_image_semantic_documents(
+    *,
+    document_path: str | Path,
+    tenant_id: str,
+    source_id: str,
+    content_hash: str,
+    starting_chunk_index: int,
+    output_root: str | Path = IMAGE_SEMANTICS_ROOT,
+) -> list[Document]:
+    """Validate every current DOCX image before rebuilding, without any API call."""
+    if not image_semantics_enabled():
+        raise RuntimeError("API-only 图片建库需要启用 IMAGE_SEMANTIC_ENABLED")
+    records = extract_docx_images(document_path)
+    indexed_orders = set()
+    for record in records:
+        cache_path = _semantic_cache_path(record, tenant_id, source_id, output_root)
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            card = KnowledgeImageSemanticCard.model_validate(cached["semantic_card"])
+            _require_reliable_card(card)
+            fingerprint = fingerprint_image(record.extracted_path)
+            expected = {
+                "status": "completed", "prompt_version": PROMPT_VERSION,
+                "model": IMAGE_UNDERSTANDING_MODEL_NAME or "unknown",
+                "tenant_id": tenant_id, "source_id": source_id,
+                "document_sha256": content_hash, "image_order": record.image_order,
+                "image_sha256": fingerprint.sha256,
+                "context_sha256": _context_sha256(record, ""),
+                "page_content": format_knowledge_card(card, record),
+            }
+            if record.document_sha256 != content_hash or any(cached.get(key) != value for key, value in expected.items()):
+                raise ValueError("图片语义缓存与当前资料或模型不一致")
+            if card.should_index:
+                indexed_orders.add(record.image_order)
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(f"图片 {record.image_order} 的有效 API 语义缓存缺失，请先完成图片预处理") from error
+
+    documents = load_cached_image_semantic_documents(
+        tenant_id=tenant_id, source_id=source_id, content_hash=content_hash,
+        starting_chunk_index=starting_chunk_index, output_root=output_root,
+    )
+    documents = [document for document in documents if document.metadata["image_order"] in indexed_orders]
+    if len(documents) != len(indexed_orders):
+        raise RuntimeError("图片语义缓存不完整，取消索引重建")
+    for index, document in enumerate(documents, start=starting_chunk_index):
+        document.metadata["chunk_index"] = index
     return documents
 
 

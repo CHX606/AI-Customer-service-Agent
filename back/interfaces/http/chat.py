@@ -2,9 +2,10 @@
 import json
 from dataclasses import asdict
 from typing import Annotated
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from back.bootstrap import get_chat_service, get_image_chat_service
+from back.core.features import image_features_enabled
 from back.application.images import MAX_IMAGE_BYTES
 from back.domain.chat import ChatCommand as InternalChatRequest, PreparedChat
 from back.domain.errors import NotFound
@@ -13,6 +14,11 @@ from back.interfaces.http.schemas import ChatRequest, ChatResponse
 from back.domain.tenant import validate_tenant_id
 
 router = APIRouter(tags=["Chat"])
+
+
+def require_image_chat():
+    if not image_features_enabled():
+        raise HTTPException(status_code=503, detail="图片问答暂未开放，请直接输入文字问题。")
 
 
 def _command(request, token=None):
@@ -73,6 +79,7 @@ def chat_stream(
 @router.post(
     "/chat/image",
     response_model=ChatResponse,
+    dependencies=[Depends(require_image_chat)],
 )
 def chat_with_image(
     session_id: Annotated[
@@ -94,7 +101,7 @@ def chat_with_image(
     turn_id: Annotated[str | None, Form(min_length=1, max_length=200)] = None,
     x_tenant_token: str | None = Header(default=None, alias="X-Tenant-Token"),
 ):
-    """临时识别用户截图，并将 OCR 提取文字与描述一并提交 Agent 处理。"""
+    """临时理解用户截图，结合知识库回答；不将客户图片自动写入知识库。"""
     try:
         safe_tenant_id = validate_tenant_id(tenant_id)
     except ValueError as err:

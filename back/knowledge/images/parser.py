@@ -23,9 +23,9 @@ from pathlib import Path
 from typing import Any
 
 from huggingface_hub import snapshot_download
-from paddleocr import PaddleOCRVL
 
 from back.core.paths import PROJECT_ROOT
+from back.core.features import local_ocr_enabled
 from back.knowledge.images.text_cleaner import (
     deduplicate_text_lines,
     deduplicate_region_texts,
@@ -141,8 +141,17 @@ def get_paddle_device() -> str:
 def get_image_parser():
     """加载并缓存 PaddleOCR-VL 模型。"""
 
+    if not local_ocr_enabled():
+        raise RuntimeError("本地 OCR 已关闭，不加载本地识图模型")
+
+    from paddleocr import PaddleOCRVL
+
     model_path = get_model_path()
     device = get_paddle_device()
+
+    if device == "cpu":
+        from back.knowledge.images.cpu_attention import install_cpu_attention_slicing
+        install_cpu_attention_slicing()
 
     print(f"PaddleOCR-VL 模型：{MODEL_ID}")
     print(f"模型实际路径：{model_path}")

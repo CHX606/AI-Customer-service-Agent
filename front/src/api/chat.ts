@@ -42,19 +42,26 @@ export function setTenantToken(token: string | null): void {
   }
 }
 
-export async function checkBackendHealth(): Promise<boolean> {
+export async function checkBackendStatus(): Promise<{ online: boolean; imageChatEnabled: boolean }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`${API_BASE_URL}/health`, {
       method: "GET",
       signal: controller.signal,
     });
-    clearTimeout(timer);
-    return res.ok;
+    if (!res.ok) return { online: false, imageChatEnabled: false };
+    const data = await res.json() as { status?: string; features?: { image_chat?: boolean } };
+    return { online: data.status === "ok", imageChatEnabled: data.features?.image_chat === true };
   } catch {
-    return false;
+    return { online: false, imageChatEnabled: false };
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+export async function checkBackendHealth(): Promise<boolean> {
+  return (await checkBackendStatus()).online;
 }
 
 export async function sendChatMessage(

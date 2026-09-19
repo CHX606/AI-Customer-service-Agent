@@ -1,0 +1,14 @@
+[Unit]
+Description=Synchronize AI customer service certificate renewed by 1Panel
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /root/ai-customer-service/infra/deploy/sync_panel_certificate.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/1panel/www/sites/ai-customer-service/ssl
+TimeoutStartSec=90
