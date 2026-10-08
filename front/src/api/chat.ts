@@ -15,6 +15,8 @@ export interface ChatResponse {
   answer: string;
   session_id: string;
   tenant_id?: string;
+  support_required?: boolean;
+  support_reason?: string | null;
 }
 
 export type ChatStreamEvent =

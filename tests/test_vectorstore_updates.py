@@ -137,87 +137,67 @@ def test_empty_document_list_does_not_open_vector_store(monkeypatch):
     factory.assert_not_called()
 
 
-def test_legacy_loader_assigns_unique_indexes_and_source_metadata_to_images():
-    raw = Document(
-        page_content="原文",
-        metadata={
-            "tenant_id": "default",
-            "source_id": "legacy_kelecloud_docx",
-            "content_hash": "hash-v1",
-            "filename": "knowledge.docx",
-        },
-    )
-    text_chunks = [document(0, "文本0"), document(1, "文本1")]
-    images = [
-        Document(page_content="图片0", metadata={"chunk_index": 0}),
-        Document(page_content="图片1", metadata={"chunk_index": 0}),
-    ]
+def test_empty_default_loads_only_public_text_without_private_docx_or_images(tmp_path, monkeypatch):
+    from back.knowledge.ingestion import loader
+    from back.knowledge.images import documents as image_documents
 
+    public = tmp_path / "public.md"
+    public.write_text("1.1 Public FAQ\nSafe user information", encoding="utf-8")
+    monkeypatch.setattr(loader, "PUBLIC_DOCUMENT_PATH", public)
+    monkeypatch.setattr(loader, "DOCUMENT_PATH", tmp_path / "missing-private.docx")
+    forbidden_images = Mock(side_effect=AssertionError("Private images must not be loaded"))
+    forbidden_semantics = Mock(side_effect=AssertionError("Private image semantics must not be loaded"))
+    monkeypatch.setattr(image_documents, "load_image_documents", forbidden_images)
+    monkeypatch.setattr(knowledge_loader, "load_required_docx_image_semantic_documents", forbidden_semantics)
+    monkeypatch.setattr(knowledge_loader, "load_cached_image_semantic_documents", forbidden_semantics)
+    monkeypatch.setattr(knowledge_loader, "get_all_knowledge_sources", lambda _tenant: [])
+
+    loaded = knowledge_loader.load_knowledge_documents("default")
+
+    assert loaded and any("Safe user information" in doc.page_content for doc in loaded)
+    assert all(doc.metadata["source_id"] == loader.PUBLIC_SOURCE_ID for doc in loaded)
+    assert all(doc.metadata["filename"] == public.name for doc in loaded)
+    forbidden_images.assert_not_called()
+    forbidden_semantics.assert_not_called()
+
+
+def test_non_default_empty_tenant_does_not_load_default_public_document():
     with (
-        patch.object(knowledge_loader, "load_documents", return_value=[raw]),
-        patch.object(knowledge_loader, "split_documents", return_value=text_chunks),
-        patch.object(knowledge_loader, "load_image_documents", return_value=images),
+        patch.object(knowledge_loader, "get_all_knowledge_sources", return_value=[]),
+        patch.object(knowledge_loader, "load_documents", side_effect=AssertionError("Cross-tenant fallback")) as default_loader,
     ):
-        loaded = knowledge_loader._load_legacy_documents("default")
-
-    assert [item.metadata["chunk_index"] for item in loaded] == [0, 1, 2, 3]
-    assert all(
-        item.metadata["source_id"] == "legacy_kelecloud_docx"
-        for item in loaded[2:]
-    )
-    assert all(item.metadata["content_hash"] == "hash-v1" for item in loaded[2:])
+        assert knowledge_loader.load_knowledge_documents("tenant_a") == []
+    default_loader.assert_not_called()
 
 
-def test_non_default_legacy_loader_keeps_tenant_isolation_and_skips_images():
-    raw = Document(page_content="原文", metadata={"tenant_id": "default"})
-    chunks = [Document(page_content="文本", metadata={"chunk_index": 0})]
-
-    with (
-        patch.object(knowledge_loader, "load_documents", return_value=[raw]),
-        patch.object(knowledge_loader, "split_documents", return_value=chunks),
-        patch.object(knowledge_loader, "load_image_documents") as image_loader,
-    ):
-        loaded = knowledge_loader._load_legacy_documents("tenant_a")
-
-    assert loaded[0].metadata["tenant_id"] == "tenant_a"
-    image_loader.assert_not_called()
-
-
-def test_knowledge_loader_deduplicates_sources_with_same_content_hash():
+def test_knowledge_loader_deduplicates_registered_uploaded_sources(tmp_path):
     sources = [
         SimpleNamespace(
-            source_id="src_uploaded_copy",
-            status="ready",
-            content_hash="same-hash",
+            source_id="src_uploaded_copy", status="ready", content_hash="same-hash",
             stored_filename="knowledge.docx",
         ),
         SimpleNamespace(
-            source_id="legacy_kelecloud_docx",
-            status="ready",
-            content_hash="same-hash",
+            source_id="legacy_kelecloud_docx", status="ready", content_hash="same-hash",
             stored_filename="knowledge.docx",
         ),
     ]
+    (tmp_path / "knowledge.docx").write_bytes(b"explicit uploaded document")
     expected = [document(0, "唯一正文")]
-
     with (
-        patch.object(
-            knowledge_loader,
-            "get_all_knowledge_sources",
-            return_value=sources,
-        ),
-        patch.object(
-            knowledge_loader,
-            "_load_legacy_documents",
-            return_value=expected,
-        ) as legacy_loader,
-        patch.object(knowledge_loader, "load_source_document") as uploaded_loader,
+        patch.object(knowledge_loader, "get_all_knowledge_sources", return_value=sources),
+        patch.object(knowledge_loader, "get_tenant_upload_dir", return_value=tmp_path),
+        patch.object(knowledge_loader, "_load_legacy_documents", side_effect=AssertionError("Packaged fallback must not replace uploads")) as default_loader,
+        patch.object(knowledge_loader, "load_source_document", return_value=expected) as uploaded_loader,
+        patch.object(knowledge_loader, "split_documents", return_value=expected),
+        patch.object(knowledge_loader, "load_cached_image_semantic_documents", return_value=[]),
     ):
         loaded = knowledge_loader.load_knowledge_documents("default")
-
     assert loaded == expected
-    legacy_loader.assert_called_once_with("default")
-    uploaded_loader.assert_not_called()
+    uploaded_loader.assert_called_once_with(
+        tmp_path / "knowledge.docx", tenant_id="default",
+        source_id="src_uploaded_copy", content_hash="same-hash",
+    )
+    default_loader.assert_not_called()
 
 
 def test_prebuilt_image_documents_are_split_below_reranker_budget():

@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "name": "可乐云有依据回答与转人工评测集",
+  "description": "验证证据判断放宽后：资料能答的问题不再转人工；资料没有的问题仍不编造，并按“先追问、再转人工”处理；回答不泄露内部操作文档用语。expect 为该轮可接受的结果集合：answer（给出回答，含部分回答）、clarify（追问补充信息）、retry（资料未命中后请用户换个说法）、handoff（转人工）。",
+  "global_forbidden_keywords": ["快捷键", "工作群", "Koon68", "Crisp"],
+  "cases": [
+    {
+      "id": "colloquial_renewal_no_traffic",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "续费了咋还是没流量啊", "expect": ["answer"], "required_keyword_groups": [["重置"]]}
+      ]
+    },
+    {
+      "id": "colloquial_refund",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "能退钱吗", "expect": ["answer"], "required_keyword_groups": [["余额"]]}
+      ]
+    },
+    {
+      "id": "colloquial_auto_renew",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "会不会偷偷自动扣我钱", "expect": ["answer"], "required_keyword_groups": [["手动", "不会", "没有自动", "无自动"]]}
+      ]
+    },
+    {
+      "id": "colloquial_device_limit",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "一个号能几台设备一起用", "expect": ["answer"], "required_keyword_groups": [["5", "五"]]}
+      ]
+    },
+    {
+      "id": "colloquial_cross_platform",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "手机和电脑都要用，是不是得买两份", "expect": ["answer"], "required_keyword_groups": [["不需要", "无需", "不用", "一个"]]}
+      ]
+    },
+    {
+      "id": "colloquial_multiplier",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "节点名后面写的×2是啥意思", "expect": ["answer"], "required_keyword_groups": [["倍率", "倍"]]}
+      ]
+    },
+    {
+      "id": "colloquial_overseas",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "我人在国外能用吗", "expect": ["answer"], "required_keyword_groups": [["大陆"]]}
+      ]
+    },
+    {
+      "id": "colloquial_trial",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "还能先试用一下吗", "expect": ["answer"], "required_keyword_groups": [["试用"], ["不再", "不提供", "没有", "已不", "暂不"]]}
+      ]
+    },
+    {
+      "id": "colloquial_device_management",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "能看到都有哪些设备在用我的账号吗", "expect": ["answer"], "required_keyword_groups": [["不支持", "无法", "不能", "没有"], ["重置订阅", "密码"]]}
+      ]
+    },
+    {
+      "id": "colloquial_unsupported_import",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "导入订阅的时候报 unsupported 是咋回事", "expect": ["answer"], "required_keyword_groups": [["版本", "太老", "旧", "更新", "更换"]]}
+      ]
+    },
+    {
+      "id": "colloquial_discord_voice",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "Discord 能打字，但是进语音一直 RTC Connecting", "expect": ["answer"], "required_keyword_groups": [["UDP"]]}
+      ]
+    },
+    {
+      "id": "colloquial_git_timeout",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "GitHub 网页能打开，但 git clone 一直超时", "expect": ["answer"], "required_keyword_groups": [["代理"]]}
+      ]
+    },
+    {
+      "id": "colloquial_carry_over",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "这个月流量没用完，下个月还能接着用吗", "expect": ["answer"], "required_keyword_groups": [["结转", "刷新", "清零", "不能", "不可"]]}
+      ]
+    },
+    {
+      "id": "colloquial_ios_app",
+      "category": "colloquial_should_answer",
+      "turns": [
+        {"message": "苹果手机该下哪个软件", "expect": ["answer"], "required_keyword_groups": [["Shadowrocket", "小火箭"]]}
+      ]
+    },
+    {
+      "id": "inference_multiplier_calc",
+      "category": "one_step_inference",
+      "turns": [
+        {"message": "用×2的节点下了 3G 的东西，要扣多少套餐流量", "expect": ["answer"], "required_keyword_groups": [["6"]]}
+      ]
+    },
+    {
+      "id": "inference_renewal_restore",
+      "category": "one_step_inference",
+      "turns": [
+        {"message": "我流量用完了，买续费能马上有流量吗", "expect": ["answer"], "required_keyword_groups": [["重置"]]}
+      ]
+    },
+    {
+      "id": "inference_phone_register",
+      "category": "one_step_inference",
+      "turns": [
+        {"message": "没有邮箱能注册吗，用手机号行不行", "expect": ["answer"], "required_keyword_groups": [["邮箱"]]}
+      ]
+    },
+    {
+      "id": "inference_harmony5",
+      "category": "one_step_inference",
+      "turns": [
+        {"message": "华为鸿蒙5能用吗", "expect": ["answer"], "required_keyword_groups": [["不保证", "不提供", "无法保证"]]}
+      ]
+    },
+    {
+      "id": "partial_reset_price",
+      "category": "partial_answer",
+      "note": "区别在资料中，价格不在；应回答区别并说明价格需人工确认，不得给出具体金额。",
+      "turns": [
+        {"message": "续费和重置有什么区别？重置要多少钱？", "expect": ["answer"], "required_keyword_groups": [["续费"], ["重置"]], "forbidden_keywords": ["元", "¥", "￥"]}
+      ]
+    },
+    {
+      "id": "partial_device_exceed",
+      "category": "partial_answer",
+      "note": "设备数在资料中，超限后果不在；人工复核回答是否编造超限处理方式。",
+      "turns": [
+        {"message": "最多几台设备同时在线？超了会怎么样？", "expect": ["answer"], "required_keyword_groups": [["5", "五"]]}
+      ]
+    },
+    {
+      "id": "context_renewal_then_near_refresh",
+      "category": "multiturn_context",
+      "turns": [
+        {"message": "续费后还是没流量", "expect": ["answer"], "required_keyword_groups": [["重置"]]},
+        {"message": "离刷新日就剩两天了，还要买重置吗", "expect": ["answer"], "required_keyword_groups": [["提前", "刷新"]]}
+      ]
+    },
+    {
+      "id": "out_of_kb_ipv6",
+      "category": "out_of_kb",
+      "flow": "retry_then_handoff",
+      "turns": [
+        {"message": "你们的节点支持 IPv6 吗", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "就是在纯 IPv6 网络下能不能直接连", "expect": ["retry", "clarify", "handoff"]}
+      ]
+    },
+    {
+      "id": "out_of_kb_annual_price",
+      "category": "out_of_kb",
+      "flow": "retry_then_handoff",
+      "turns": [
+        {"message": "年付套餐多少钱", "expect": ["retry", "clarify", "handoff"], "forbidden_keywords": ["元", "¥", "￥"]},
+        {"message": "我是问买一年要多少钱", "expect": ["retry", "clarify", "handoff"], "forbidden_keywords": ["元", "¥", "￥"]}
+      ]
+    },
+    {
+      "id": "out_of_kb_datacenter",
+      "category": "out_of_kb",
+      "flow": "retry_then_handoff",
+      "turns": [
+        {"message": "你们服务器放在哪个机房", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "就是节点服务器托管在哪家云厂商", "expect": ["retry", "clarify", "handoff"]}
+      ]
+    },
+    {
+      "id": "kb_gap_change_email",
+      "category": "kb_gap",
+      "note": "资料只写了内部快捷键名，没有可直接告诉用户的步骤；转人工属于知识库缺口，同时检查不泄露内部用语。",
+      "turns": [
+        {"message": "怎么改绑定邮箱", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "就是想把账号邮箱换成别的", "expect": ["retry", "clarify", "handoff"]}
+      ]
+    },
+    {
+      "id": "kb_gap_invite_withdraw",
+      "category": "kb_gap",
+      "note": "资料只写了内部快捷键名；检查不编造提现规则、不泄露内部用语。",
+      "turns": [
+        {"message": "邀请返利的钱能提现吗", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "就是邀请别人赚的余额能不能取出来", "expect": ["retry", "clarify", "handoff"]}
+      ]
+    },
+    {
+      "id": "flow_new_issue_after_retry",
+      "category": "two_stage_flow",
+      "note": "第一轮资料未命中后，用户明确换新问题，新问题应正常回答。",
+      "turns": [
+        {"message": "你们的节点支持 IPv6 吗", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "另外一个问题，能退款吗", "expect": ["answer"], "required_keyword_groups": [["余额"]]}
+      ]
+    },
+    {
+      "id": "flow_human_request_after_retry",
+      "category": "two_stage_flow",
+      "note": "第一轮资料未命中后，用户直接要求人工，应走企业资料回答而不是再次追问。",
+      "turns": [
+        {"message": "你们服务器放在哪个机房", "expect": ["retry", "clarify", "handoff"]},
+        {"message": "转人工客服", "expect": ["answer"]}
+      ]
+    },
+    {
+      "id": "flow_rephrase_then_answer",
+      "category": "two_stage_flow",
+      "note": "第一轮说法含糊时不应直接转人工；换成清楚说法后应正常回答。",
+      "turns": [
+        {"message": "那个乘2是啥", "expect": ["answer", "clarify", "retry"]},
+        {"message": "节点名字后面带的×2是什么意思", "expect": ["answer"], "required_keyword_groups": [["倍率", "倍"]]}
+      ]
+    }
+  ]
+}

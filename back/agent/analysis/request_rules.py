@@ -13,8 +13,40 @@ _PROFILE_QUERY = re.compile(
     r"介绍一下(?:你们(?:的)?(?:公司|企业)?|公司|企业)|"
     r"(?:你们的?|公司的?|企业的?|客服的?)?"
     r"(?:营业时间|联系方式|客服电话)(?:是什么|是多少|是啥)?|"
-    r"怎么联系你们|(?:联系|转|找)?人工客服"
-    r")(?:吗|呢|呀|啊)?"
+    r"怎么联系你们|"
+    # 真实会话中常见“人工服务”“转人工”“有人工客服不”等说法，都是在找人工客服。
+    r"(?:有没有|有)?(?:转接|转|找|联系|我要|我想要|我想|要)?人工(?:客服|服务)?"
+    r")(?:吗|呢|呀|啊|不)?"
+)
+
+# 完整正向人工请求单独识别；否定句和包含真实业务问题的长句仍按原业务流程处理。
+_HUMAN_SERVICE_QUERY = re.compile(
+    r"(?:你好|您好)?(?:请问|请|麻烦|能否|可以)?(?:帮我|为我)?(?:"
+    r"(?:有没有|有)?(?:转接|转|找|联系|我要|我想要|我想|要)?人工(?:客服|服务)?|"
+    r"(?:怎么|如何|怎样)(?:联系|找到|找)(?:你们|你们的客服|客服|人工(?:客服|服务)?)|"
+    r"(?:联系|找|转接)客服|"
+    r"(?:你们的?|公司的?|企业的?|客服的?|人工客服的?)?"
+    r"(?:联系方式|联系电话|客服电话)(?:是什么|是多少|是啥|在哪(?:里)?|怎么找)?"
+    r")(?:吗|呢|呀|啊|不)?"
+)
+
+
+def is_explicit_human_request(query: str) -> bool:
+    """识别独立找人工的请求，不把否定人工或人工智能当作转人工。"""
+    return _HUMAN_SERVICE_QUERY.fullmatch(_normalize_query(query)) is not None
+
+
+# 只识别索要账户资料的值；询问能否登录、是否收到验证码等状态可以保留。
+_ACCOUNT_DETAIL_VALUE = (
+    r"(?:账号|账户|邮箱|订单号|密码|工单号|工单(?!号)|申请记录)"
+    r"(?!\s*(?:的\s*)?(?:是否|是不是|能否|有没有|能不能|可否|可以|能|状态|登录|已经|已|收到|无法|不能|正常))"
+)
+_ACCOUNT_SOLICITATION = re.compile(
+    r"(?:提供|发送|发一下|发给|留言|报一下).{0,12}" + _ACCOUNT_DETAIL_VALUE
+    + r"|告诉(?:(?!是否|是不是|能否|有没有|能不能|可否).){0,12}" + _ACCOUNT_DETAIL_VALUE
+    + r"|(?:把|将).{0,8}" + _ACCOUNT_DETAIL_VALUE + r".{0,12}(?:给我|发我|发给|提供给)"
+    + r"|" + _ACCOUNT_DETAIL_VALUE + r"\s*(?:是|为)?(?:多少|什么|哪个|哪一个)(?!\s*(?:状态|情况|问题|类型))"
+    + r"|" + _ACCOUNT_DETAIL_VALUE + r"\s*(?:给我|发我|发一下|发给)"
 )
 
 _VAGUE_BUSINESS_FAILURES = {
@@ -178,7 +210,7 @@ def _is_profile_query(query: str, *, allow_generic_intro: bool = True) -> bool:
     normalized = _normalize_query(query)
     if allow_generic_intro and normalized == "介绍一下":
         return True
-    return _PROFILE_QUERY.fullmatch(normalized) is not None
+    return is_explicit_human_request(query) or _PROFILE_QUERY.fullmatch(normalized) is not None
 
 
 def _scope_supports(
@@ -256,7 +288,20 @@ def analyze_request_fast_path(
     active_issue: ActiveIssue | None,
     business_scope: list[str],
 ) -> RequestAnalysis | None:
-    """仅处理高置信度单轮请求；涉及上下文时必须返回 None。"""
+    """处理明确的企业资料请求及高置信度单轮请求。"""
+    # 明确的联系方式/人工请求不依赖旧问题，也不应被上一轮追问拦住。
+    if _is_profile_query(
+        current_query,
+        allow_generic_intro=active_issue is None and not recent_messages,
+    ):
+        return _direct_analysis(
+            current_query=current_query,
+            scope="in_scope",
+            scope_reason="用户正在咨询企业固定资料。",
+            intent="company_info",
+            action="profile",
+        )
+
     if active_issue is not None or recent_messages:
         return None
 
@@ -268,15 +313,6 @@ def analyze_request_fast_path(
     is_external_query = any(
         term in normalized for term in _EXTERNAL_SERVICE_TERMS
     )
-
-    if _is_profile_query(current_query):
-        return _direct_analysis(
-            current_query=current_query,
-            scope="in_scope",
-            scope_reason="用户正在咨询企业固定资料。",
-            intent="company_info",
-            action="profile",
-        )
 
     if _is_vague_business_failure(current_query):
         is_node = "节点" in normalized
@@ -542,4 +578,21 @@ def normalize_request_analysis(
             }
         )
 
-    return analysis.model_copy(update=updates)
+    normalized = analysis.model_copy(update=updates)
+    if (
+        normalized.scope == "in_scope"
+        and normalized.action == "clarify"
+        and _ACCOUNT_SOLICITATION.search(normalized.clarifying_question or "")
+    ):
+        # 统一检查最终追问，避免外网应用等前置分支绕过账户资料限制。
+        normalized = normalized.model_copy(
+            update={
+                "action": "retrieve",
+                "missing_information": [],
+                "clarifying_question": None,
+                "rewritten_queries": [],
+                "rewrite_reason": None,
+                "intent_reason": f"{normalized.intent_reason} 追问需索要账户信息，改为检索办理说明。".strip(),
+            }
+        )
+    return normalized

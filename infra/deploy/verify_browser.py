@@ -30,7 +30,23 @@ def management_check(browser, settings):
     expect(company).to_be_visible(timeout=30000)
     expect(company).not_to_have_value("", timeout=30000)
     admin.get_by_role("tab", name="知识库文档").click()
-    expect(admin.get_by_text("可乐云客服操作文档.docx", exact=True)).to_be_visible(timeout=30000)
+    files_response = admin_context.request.get(
+        settings["url"].rstrip("/") + "/api/admin/knowledge/files?tenant_id=default"
+    )
+    assert files_response.status == 200, "Knowledge list API failed"
+    ready_sources = [source for source in files_response.json() if source["status"] == "ready"]
+    assert ready_sources, "No ready knowledge sources available"
+    preferred_names = (
+        "可乐云用户知识库.md", "可乐云账号与订单.md", "可乐云客户端下载与使用.md",
+    )
+    selected_source = next(
+        (source for filename in preferred_names for source in ready_sources
+         if source["original_filename"] == filename),
+        ready_sources[0],
+    )
+    expect(admin.locator(".file-name").get_by_text(
+        selected_source["original_filename"], exact=True
+    ).first).to_be_visible(timeout=30000)
     expect(admin.locator(".knowledge-hint")).to_contain_text("DOCX 图片会按服务器配置进行语义解析")
     admin.screenshot(path="/tmp/ai-customer-service-management.png", full_page=True)
     assert not errors, "Uncaught JavaScript error in management frontend"

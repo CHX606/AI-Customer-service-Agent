@@ -63,6 +63,7 @@ class ActiveIssue(TypedDict):
     status: IssueStatus
     intent: NotRequired[IntentType | None]
     last_clarifying_question: NotRequired[str | None]
+    not_found_count: NotRequired[int]
 
 
 IntentAction = Literal[
@@ -73,6 +74,7 @@ IntentAction = Literal[
 
 EvidenceStatus = Literal[
     "sufficient",
+    "partial",
     "insufficient",
     "not_found",
     "conflict",

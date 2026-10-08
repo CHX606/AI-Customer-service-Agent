@@ -1,7 +1,12 @@
 """客服工作流职责模块：retrieval_nodes"""
+import logging
+
 from back.agent.workflow.state import CustomerServiceState
+from back.knowledge.retrieval.expansion import expand_neighbor_chunks
 from back.knowledge.retrieval.hybrid import RRF_CANDIDATES, retrieve_documents_multi_query
 from back.knowledge.retrieval.reranker import rerank_documents
+
+logger = logging.getLogger(__name__)
 
 def hybrid_search_node(state: CustomerServiceState):
     """对原问题和改写问题在当前租户集合中执行多查询宽召回。"""
@@ -37,6 +42,11 @@ def rerank_node(state: CustomerServiceState):
         query=resolved_query,
         documents=candidates,
     )
+
+    try:
+        documents = expand_neighbor_chunks(documents, state.get("tenant_id", "default"))
+    except Exception:
+        logger.warning("相邻块扩展失败，使用原始结果", exc_info=True)
 
     return {
         "retrieved_documents": documents,

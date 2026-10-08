@@ -165,12 +165,173 @@ def test_fast_path_handles_only_deterministic_single_turns(
     assert result.intent == intent
 
 
+@pytest.mark.parametrize(
+    "query",
+    ["人工客服", "人工服务", "转人工", "有人工客服吗？", "有人工客服不", "我要人工", "人工"],
+)
+def test_human_service_requests_use_profile_shortcut(query):
+    result = analyze_request_fast_path(
+        current_query=query,
+        recent_messages=[],
+        active_issue=None,
+        business_scope=["账号"],
+    )
+    assert result is not None
+    assert result.action == "profile"
+    assert result.intent == "company_info"
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["人工服务，怎么续订以后我之前的天数没了。", "人工智能能用吗", "不要转人工客服"],
+)
+def test_human_word_inside_real_question_is_not_profile_shortcut(query):
+    result = analyze_request_fast_path(
+        current_query=query,
+        recent_messages=[],
+        active_issue=None,
+        business_scope=["账号"],
+    )
+    assert result is None or result.action != "profile"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "请提供您的账号信息或换绑邮箱相关工单/申请记录，以便查询换绑进度。",
+        "请发送您的注册邮箱和订单号，我帮您查一下。",
+        "麻烦告诉我您的账号密码。",
+        "您的订单号是多少？我帮您查。",
+        "把您的账号和订单号给我",
+        "您的注册邮箱是什么？",
+    ],
+)
+def test_clarify_that_solicits_account_details_becomes_retrieve(question):
+    result = normalize_request_analysis(
+        make_analysis(
+            resolved_query="帮我换绑邮箱换好了吗",
+            intent="account",
+            action="clarify",
+            missing_information=["账号信息"],
+            clarifying_question=question,
+            rewritten_queries=[],
+        ),
+        current_query="帮我换绑邮箱换好了吗",
+        active_issue=None,
+    )
+    assert result.action == "retrieve"
+    assert result.clarifying_question is None
+    assert result.missing_information == []
+    assert build_search_queries(result) == ["帮我换绑邮箱换好了吗"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "请问您用的是哪个客户端和设备？",
+        "当前页面显示什么错误提示？",
+        "您的账号能否登录？",
+        "请告诉我您的账号是否可以登录。",
+        "请告诉我您的账号登录状态是否正常。",
+        "请告诉我您的账号登录是否成功。",
+        "请告诉我您的账号是不是可以登录。",
+        "请告诉我是否可以登录账号。",
+        "请告诉我您的邮箱是否收到了验证码。",
+        "您是否收到验证码？",
+        "您的账号是什么状态？",
+    ],
+)
+def test_clarify_about_device_or_account_state_is_kept(question):
+    result = normalize_request_analysis(
+        make_analysis(
+            resolved_query="点连接没反应",
+            intent="software_usage",
+            action="clarify",
+            missing_information=["设备"],
+            clarifying_question=question,
+            rewritten_queries=[],
+        ),
+        current_query="点连接没反应",
+        active_issue=None,
+    )
+    assert result.action == "clarify"
+    assert result.clarifying_question == question
+
+
+def test_external_service_branch_cannot_bypass_account_solicitation_guard():
+    result = normalize_request_analysis(
+        make_analysis(
+            resolved_query="Gmail用不了",
+            action="clarify",
+            missing_information=["账号信息"],
+            clarifying_question="请提供您的账号信息，以便查询进度。",
+        ),
+        current_query="Gmail用不了",
+        active_issue=None,
+        business_scope=["外网应用使用与排障"],
+    )
+    assert result.scope == "in_scope"
+    assert result.action == "retrieve"
+    assert result.clarifying_question is None
+    assert result.missing_information == []
+    assert build_search_queries(result) == ["Gmail用不了"]
+
+
+@pytest.mark.parametrize("scope", ["out_of_scope", "uncertain", "chitchat"])
+def test_account_solicitation_guard_never_promotes_non_business_scope(scope):
+    result = normalize_request_analysis(
+        make_analysis(
+            resolved_query="查询别的平台订单",
+            scope=scope,
+            action="clarify",
+            clarifying_question="您的订单号是多少？我帮您查。",
+        ),
+        current_query="查询别的平台订单",
+        active_issue=None,
+    )
+    assert result.scope == scope
+    assert result.action == "clarify"
+    assert result.clarifying_question is None
+
+
+@pytest.mark.parametrize("use_router", [True, False])
+def test_router_prompts_discourage_needless_clarification_and_account_lookup(use_router):
+    router = FakeStructuredModel(
+        RouteDecision(scope="in_scope", intent="software_usage", action="retrieve")
+    )
+    fallback = FakeStructuredModel(make_analysis())
+    route_request(
+        router_llm=router,
+        fallback_llm=fallback,
+        current_query="有没有电脑版的",
+        recent_messages=[] if use_router else [{"role": "assistant", "content": "您好"}],
+        active_issue=None,
+        company_name="测试企业",
+        business_scope=["客户端下载"],
+        router_v2_enabled=True,
+    )
+    prompt = (router if use_router else fallback).messages[0].content
+    assert "不要先追问设备、系统或软件" in prompt
+    assert "无法查询或修改用户的账户" in prompt
+
+
 def test_fast_path_refuses_contextual_requests():
     result = analyze_request_fast_path(
         current_query="还是不行",
         recent_messages=[{"role": "assistant", "content": "请问显示什么错误？"}],
         active_issue={"summary": "节点连接失败", "status": "awaiting_user"},
         business_scope=["节点连接"],
+    )
+    assert result is None
+
+
+@pytest.mark.parametrize("query", ["介绍一下", "退款怎么联系你们处理", "不要转人工客服"])
+def test_contextual_profile_wording_does_not_trigger_fixed_profile_shortcut(query):
+    result = analyze_request_fast_path(
+        current_query=query,
+        recent_messages=[{"role": "assistant", "content": "请补充页面状态"}],
+        active_issue={"summary": "退款问题", "status": "awaiting_user"},
+        business_scope=["退款"],
     )
     assert result is None
 

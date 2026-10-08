@@ -24,6 +24,14 @@ def get_chat_service() -> ChatService:
 
 
 @lru_cache(maxsize=1)
+def get_handoff_service():
+    from back.application.handoff import HandoffService
+    from back.infrastructure.notifications import EmailNotifier
+    from back.infrastructure.persistence.handoffs import SQLiteHandoffRepository
+    return HandoffService(SQLiteHandoffRepository(), EmailNotifier(), get_chat_service().sessions, SQLiteTenantRepository())
+
+
+@lru_cache(maxsize=1)
 def get_profile_service():
     from back.application.tenants import TenantProfileService
     return TenantProfileService(SQLiteTenantRepository(), SemanticAnswerCache())
@@ -48,6 +56,8 @@ def get_knowledge_service():
 def initialize_database():
     from back.tenant.service import init_tenant_system
     init_tenant_system()
+    from back.infrastructure.persistence.handoffs import init_handoff_db
+    init_handoff_db()
 
 
 def initialize_search():

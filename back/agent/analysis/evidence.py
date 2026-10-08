@@ -9,6 +9,7 @@
 # 这里主要用来把问题、意图和检索资料整理成一段格式清楚的文字，
 # 然后一起交给大模型进行判断。
 import json
+from typing import Literal
 
 
 # Document 是 LangChain 用来保存文档内容的格式。
@@ -38,11 +39,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 
-# 从 state.py 导入项目已经统一规定好的字段类型。
-# EvidenceStatus：证据是否充分，例如 sufficient、insufficient。
+# 从领域模型导入项目统一规定的业务意图类型。
 # IntentType：用户问题属于哪种业务，例如流量、套餐、退款。
-# 这样可以避免不同文件使用不一致的状态名称。
-from back.domain.conversation import EvidenceStatus, IntentType
+from back.domain.conversation import IntentType
 
 
 # 这个类用来规定“证据判断节点”必须返回哪些内容。
@@ -57,12 +56,12 @@ class EvidenceAnalysis(BaseModel):
 
     # 记录本次检索资料是否足够支持回答。
     #
-    # 只能使用 EvidenceStatus 中规定的四种结果：
+    # 旧证据判断链路只支持以下四种结果；partial 由 GroundedResponse 处理。
     # sufficient：资料足够，可以根据知识库回答。
     # insufficient：资料有一定帮助，但缺少用户的关键信息，需要追问。
     # not_found：检索出的资料无法回答这个问题。
     # conflict：不同资料的说法互相冲突，不能直接选择其中一个回答。
-    evidence_status: EvidenceStatus = Field(
+    evidence_status: Literal["sufficient", "insufficient", "not_found", "conflict"] = Field(
         description=(
             "sufficient表示资料足以回答；"
             "insufficient表示还需要用户补充信息；"

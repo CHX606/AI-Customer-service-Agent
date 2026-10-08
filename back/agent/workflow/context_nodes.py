@@ -54,6 +54,8 @@ def analyze_request_node(state: CustomerServiceState):
     if active_issue and user_confirms_resolution(current_query):
         return {
             "relation": "continue",
+            "explicit_new_issue": False,
+            "profile_preserves_issue": False,
             "route_source": "fast_rule",
             "resolved_query": current_query,
             "context_reason": "用户明确确认当前问题已经解决。",
@@ -89,7 +91,13 @@ def analyze_request_node(state: CustomerServiceState):
         business_scope=profile.business_scope,
     )
 
-    if analysis.scope == "in_scope":
+    # 企业资料咨询是当前问题中的插话，不覆盖原问题的处理进度。
+    profile_preserves_issue = (
+        active_issue is not None
+        and analysis.scope == "in_scope"
+        and analysis.action == "profile"
+    )
+    if analysis.scope == "in_scope" and not profile_preserves_issue:
         active_issue = start_or_continue_issue(
             active_issue=active_issue,
             relation=analysis.relation,
@@ -99,6 +107,8 @@ def analyze_request_node(state: CustomerServiceState):
 
     return {
         "relation": analysis.relation,
+        "explicit_new_issue": analysis.explicit_new_issue,
+        "profile_preserves_issue": profile_preserves_issue,
         "route_source": analysis.route_source,
         "resolved_query": analysis.resolved_query,
         "context_reason": analysis.context_reason,

@@ -19,6 +19,8 @@ from back.core.paths import KNOWLEDGE_RESOURCES_DIR
 
 
 DOCUMENT_PATH = KNOWLEDGE_RESOURCES_DIR / "可乐云客服操作文档.docx"
+PUBLIC_DOCUMENT_PATH = KNOWLEDGE_RESOURCES_DIR / "可乐云用户知识库.md"
+PUBLIC_SOURCE_ID = "builtin_kelecloud_public"
 
 
 def compute_file_hash(path: Path | str) -> str:
@@ -102,11 +104,11 @@ def load_source_document(
 
 
 def load_documents() -> list[Document]:
-    """加载默认的可乐云 Word 操作文档（向后兼容）。"""
+    """加载默认的用户知识库，不包含内部操作手册或图片缓存。"""
     return load_source_document(
-        DOCUMENT_PATH,
+        PUBLIC_DOCUMENT_PATH,
         tenant_id="default",
-        source_id="legacy_kelecloud_docx",
+        source_id=PUBLIC_SOURCE_ID,
     )
 
 

@@ -80,6 +80,12 @@ npm run dev
 
 浏览器访问 `http://127.0.0.1:5173`。前端配置和测试说明见 [前端文档](front/README.md)。
 
+## 人工处理申请
+
+用户点击“提交人工处理”填写事情后，申请和最近会话保存在数据库，服务发送邮件通知站长。管理后台的“人工待办”可查看问题、会话和通知状态，并记录处理状态及备注。仅提交申请才会发信；普通聊天不会自动创建申请。
+
+本地 `.env` 或服务器 `.env.production` 填写 SMTP 配置。Gmail 使用 `smtp.gmail.com`、587、`starttls`，`SMTP_PASSWORD` 填写应用专用密码；收件人填入 `HANDOFF_NOTIFICATION_TO`。其他租户需要独立配置 `HANDOFF_NOTIFICATION_RECIPIENTS`。`HANDOFF_ADMIN_URL` 可填写实际后台地址，配置仅存在服务端。重启后生效。完整说明见 [邮件转人工流程](docs/setup/email-handoff.md)。
+
 ## 验证
 
 ```powershell

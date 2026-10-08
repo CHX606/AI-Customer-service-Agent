@@ -185,3 +185,98 @@ def test_resolution_confirmation_skips_analysis_model_call():
     assert result["scope"] == "chitchat"
     assert result["active_issue"]["status"] == "resolved"
     assert result["search_queries"] == []
+
+
+@pytest.mark.parametrize("relation", ["continue", "correction", "new_issue"])
+def test_not_found_followup_survives_session_reload_and_hands_off_on_second_miss(tmp_path, relation):
+    from back.infrastructure.persistence.sessions import SQLiteSessionRepository
+
+    path = tmp_path / "not-found-sessions.db"
+    key = ("default", "not-found-conversation")
+    with (
+        patch("back.agent.workflow.context_nodes.route_request", return_value=request_result()),
+        patch("back.agent.workflow.retrieval_nodes.retrieve_documents_multi_query", return_value=[]),
+        patch("back.agent.workflow.retrieval_nodes.rerank_documents", return_value=[]),
+    ):
+        first = customer_service_graph.invoke({
+            "tenant_id": "default",
+            "messages": [HumanMessage(content="续费后流量没有重置怎么办？")],
+        })
+    assert first["active_issue"]["status"] == "awaiting_user"
+    assert first["active_issue"]["not_found_count"] == 1
+    SQLiteSessionRepository(path).save(key, first, 0)
+    restored = SQLiteSessionRepository(path).load(key).state
+    assert restored["active_issue"]["last_clarifying_question"] == first["messages"][-1].content
+
+    with (
+        patch(
+            "back.agent.workflow.context_nodes.route_request",
+            return_value=request_result(relation=relation, answers_last_question=relation != "new_issue"),
+        ),
+        patch("back.agent.workflow.retrieval_nodes.retrieve_documents_multi_query", return_value=[]),
+        patch("back.agent.workflow.retrieval_nodes.rerank_documents", return_value=[]),
+    ):
+        second = customer_service_graph.invoke({
+            **restored,
+            "tenant_id": "default",
+            "messages": [*restored["messages"], HumanMessage(content="页面仍然显示流量为零")],
+        })
+    assert second["active_issue"]["status"] == "handed_off"
+    assert second["active_issue"]["not_found_count"] == 2
+    assert "人工" in second["messages"][-1].content
+
+
+def test_explicit_new_question_after_retry_starts_its_own_miss_count():
+    from back.agent.workflow.response_nodes import NOT_FOUND_RETRY
+
+    with (
+        patch(
+            "back.agent.workflow.context_nodes.route_request",
+            return_value=request_result(
+                relation="new_issue", explicit_new_issue=True,
+                resolved_query="另外一个问题：退款怎么处理？", intent="refund",
+            ),
+        ),
+        patch("back.agent.workflow.retrieval_nodes.retrieve_documents_multi_query", return_value=[]),
+        patch("back.agent.workflow.retrieval_nodes.rerank_documents", return_value=[]),
+    ):
+        result = customer_service_graph.invoke({
+            "tenant_id": "default",
+            "active_issue": {
+                "summary": "续费后流量未重置", "status": "awaiting_user",
+                "intent": "traffic", "not_found_count": 1,
+            },
+            "messages": [
+                HumanMessage(content="续费后流量未重置"),
+                AIMessage(content=NOT_FOUND_RETRY),
+                HumanMessage(content="另外一个问题：退款怎么处理？"),
+            ],
+        })
+    assert result["active_issue"]["intent"] == "refund"
+    assert result["active_issue"]["status"] == "awaiting_user"
+    assert result["active_issue"]["not_found_count"] == 1
+
+
+def test_explicit_human_request_bypasses_not_found_followup():
+    fake_model = CountingModel({})
+    with (
+        patch("back.core.llm.model", fake_model),
+        patch("back.core.llm.get_response_model", return_value=fake_model),
+        patch("back.agent.workflow.retrieval_nodes.retrieve_documents_multi_query") as retrieve,
+    ):
+        result = customer_service_graph.invoke({
+            "tenant_id": "default",
+            "messages": [HumanMessage(content="转人工客服")],
+            "active_issue": {
+                "summary": "资料没找到的问题",
+                "status": "awaiting_user",
+                "not_found_count": 1,
+                "last_clarifying_question": "请补充页面提示",
+            },
+        })
+    retrieve.assert_not_called()
+    assert result["action"] == "profile"
+    assert "提交人工处理" in result["messages"][-1].content
+    assert result["support_required"] is True
+    assert result["active_issue"]["summary"] == "资料没找到的问题"
+    assert fake_model.calls == []

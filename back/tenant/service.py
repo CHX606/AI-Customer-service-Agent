@@ -29,6 +29,8 @@ from back.infrastructure.persistence.tenants import (
 
 DATA_DIR = DEFAULT_DATA_DIR
 LEGACY_DOCX_PATH = KNOWLEDGE_RESOURCES_DIR / "可乐云客服操作文档.docx"
+PUBLIC_KNOWLEDGE_PATH = KNOWLEDGE_RESOURCES_DIR / "可乐云用户知识库.md"
+PUBLIC_KNOWLEDGE_SOURCE_ID = "builtin_kelecloud_public"
 EXTERNAL_APPS_GUIDE_PATH = KNOWLEDGE_RESOURCES_DIR / "外网常用应用使用与排障.md"
 EXTERNAL_APPS_SOURCE_ID = "builtin_external_apps_guide"
 
@@ -49,57 +51,47 @@ def init_tenant_system() -> None:
     if default_profile is None:
         save_tenant_profile(DEFAULT_KELECLOUD_PROFILE)
 
-    # 注册旧的可乐云操作文档为 legacy_kelecloud_docx
-    legacy_source = load_knowledge_source("legacy_kelecloud_docx")
-    if legacy_source is None and LEGACY_DOCX_PATH.exists():
-        content_bytes = LEGACY_DOCX_PATH.read_bytes()
+    # 仅为空的默认知识库提供安全用户文档，内部操作手册不再自动登记。
+    builtin_source_ids = {
+        PUBLIC_KNOWLEDGE_SOURCE_ID, EXTERNAL_APPS_SOURCE_ID, "legacy_kelecloud_docx"
+    }
+    has_uploaded_source = any(
+        source.source_id not in builtin_source_ids
+        and source.status in {"processing", "ready"}
+        for source in list_knowledge_sources("default")
+    )
+    public_source = load_knowledge_source(PUBLIC_KNOWLEDGE_SOURCE_ID)
+    if not has_uploaded_source and PUBLIC_KNOWLEDGE_PATH.exists():
+        content_bytes = PUBLIC_KNOWLEDGE_PATH.read_bytes()
         content_hash = hashlib.sha256(content_bytes).hexdigest()
-        duplicate_source = next(
-            (
-                source
-                for source in list_knowledge_sources("default")
-                if source.content_hash == content_hash
-                and source.status in {"processing", "ready"}
-            ),
-            None,
-        )
-        if duplicate_source is not None:
-            legacy_source = duplicate_source
-
-    if (
-        legacy_source is None
-        and LEGACY_DOCX_PATH.exists()
-    ):
-        content_bytes = LEGACY_DOCX_PATH.read_bytes()
-        content_hash = hashlib.sha256(content_bytes).hexdigest()
-        registered_source = KnowledgeSource(
-            source_id="legacy_kelecloud_docx",
-            tenant_id="default",
-            original_filename="可乐云客服操作文档.docx",
-            stored_filename="可乐云客服操作文档.docx",
-            file_type="docx",
-            content_hash=content_hash,
-            status="ready",
-            error_message=None,
-            # 旧数据源尚未通过当前切块器重索，不能伪造固定分片数。
-            # 首次显式重索后由索引服务写入真实数量。
-            chunk_count=0,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
-        save_knowledge_source(registered_source)
-
-        legacy_source = registered_source
-
-    # The admin indexer reads source files from the upload directory, including
-    # built-ins. Restore only an absent, unchanged packaged DOCX; never overwrite
-    # an existing file or substitute a different version for registered content.
-    if (legacy_source is not None and legacy_source.source_id == "legacy_kelecloud_docx"
-            and legacy_source.stored_filename == LEGACY_DOCX_PATH.name and LEGACY_DOCX_PATH.exists()
-            and legacy_source.content_hash == hashlib.sha256(LEGACY_DOCX_PATH.read_bytes()).hexdigest()):
-        stored_path = get_tenant_upload_dir("default", legacy_source.source_id) / legacy_source.stored_filename
-        if not stored_path.exists():
-            shutil.copy2(LEGACY_DOCX_PATH, stored_path)
+        if public_source is None:
+            upload_dir = get_tenant_upload_dir("default", PUBLIC_KNOWLEDGE_SOURCE_ID)
+            (upload_dir / PUBLIC_KNOWLEDGE_PATH.name).write_bytes(content_bytes)
+            public_source = KnowledgeSource(
+                source_id=PUBLIC_KNOWLEDGE_SOURCE_ID,
+                tenant_id="default",
+                original_filename=PUBLIC_KNOWLEDGE_PATH.name,
+                stored_filename=PUBLIC_KNOWLEDGE_PATH.name,
+                file_type="md",
+                content_hash=content_hash,
+                status="ready",
+                error_message=None,
+                chunk_count=0,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+            )
+            save_knowledge_source(public_source)
+        elif (
+            public_source.stored_filename == PUBLIC_KNOWLEDGE_PATH.name
+            and public_source.content_hash == content_hash
+        ):
+            # 只补回缺失且版本一致的文件，保留管理员已有内容。
+            stored_path = (
+                get_tenant_upload_dir("default", public_source.source_id)
+                / public_source.stored_filename
+            )
+            if not stored_path.exists():
+                shutil.copy2(PUBLIC_KNOWLEDGE_PATH, stored_path)
 
     # 内置外网应用指南按独立数据源登记，便于单独更新和重建索引。
     if EXTERNAL_APPS_GUIDE_PATH.exists():

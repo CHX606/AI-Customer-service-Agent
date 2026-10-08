@@ -57,19 +57,15 @@ def _partial_json_string(payload: str, field: str) -> tuple[str, bool] | None:
     return "".join(decoded), False
 
 def _grounded_answer_is_streamable(payload: str, document_count: int) -> bool:
-    """仅在模型已经声明证据充分且提供有效资料编号后开放回答流。"""
+    """有候选资料且模型声明能够完整或部分回答时开放回答流。"""
+    if document_count <= 0:
+        return False
     try:
         prefix = payload.split('"answer"', maxsplit=1)[0]
         partial = json.loads(prefix.rstrip().rstrip(",") + "}")
     except (json.JSONDecodeError, TypeError, ValueError):
         return False
-    if partial.get("evidence_status") != "sufficient":
-        return False
-    indexes = partial.get("supporting_document_indexes")
-    return isinstance(indexes, list) and any(
-        isinstance(index, int) and 1 <= index <= document_count
-        for index in indexes
-    )
+    return partial.get("evidence_status") in ("sufficient", "partial")
 
 
 class LangGraphEngine:

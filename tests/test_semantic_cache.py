@@ -532,6 +532,7 @@ def test_followup_question_bypasses_cache(monkeypatch):
     ("action", "evidence_status", "scope", "expected_calls"),
     [
         ("retrieve", "sufficient", "in_scope", 1),
+        ("retrieve", "partial", "in_scope", 0),
         ("retrieve", "not_found", "in_scope", 0),
         ("retrieve", "insufficient", "in_scope", 0),
         ("retrieve", "conflict", "in_scope", 0),

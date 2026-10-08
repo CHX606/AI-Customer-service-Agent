@@ -7,6 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+import pytest
 
 import back.interfaces.http.app
 from back.interfaces.http.app import app
@@ -76,16 +77,27 @@ def test_partial_json_string_decodes_streamed_escapes():
     )
 
 
-def test_grounded_answer_streams_only_after_valid_evidence_prefix():
+@pytest.mark.parametrize("evidence_status", ["sufficient", "partial"])
+@pytest.mark.parametrize("document_indexes", [[1], [], [0, 9], None])
+def test_grounded_answer_streams_supported_status_without_requiring_indexes(
+    evidence_status,
+    document_indexes,
+):
     reranked = {
         **prepared().graph_input,
         "scope": "in_scope",
         "action": "retrieve",
         "retrieved_documents": [Document(page_content="资料")],
     }
+    index_field = (
+        f'"supporting_document_indexes":{json.dumps(document_indexes)},'
+        if document_indexes is not None
+        else ""
+    )
     chunks = [
-        '{"evidence_status":"sufficient",',
-        '"supporting_document_indexes":[1],"answer":"续费',
+        f'{{"evidence_status":"{evidence_status}",',
+        index_field,
+        '"answer":"续费',
         '后流量按套餐周期重置。",',
         '"missing_information":[],"clarifying_question":null,',
         '"decision_reason":"资料支持"}',
@@ -101,7 +113,16 @@ def test_grounded_answer_streams_only_after_valid_evidence_prefix():
         )
         for content in chunks
     )
-    graph_events.append(("values", final_state("续费后流量按套餐周期重置。")))
+    graph_events.append(
+        (
+            "values",
+            {
+                **final_state("续费后流量按套餐周期重置。"),
+                "evidence_status": evidence_status,
+                "retrieved_documents": reranked["retrieved_documents"],
+            },
+        )
+    )
 
     with patch.object(
         get_chat_service().engine.graph,
@@ -110,24 +131,41 @@ def test_grounded_answer_streams_only_after_valid_evidence_prefix():
     ):
         events = parse_events(_stream_prepared_chat(prepared()))
 
-    assert "".join(
-        event["delta"] for event in events if event["type"] == "token"
-    ) == "续费后流量按套餐周期重置。"
+    assert [event["delta"] for event in events if event["type"] == "token"] == [
+        "续费",
+        "后流量按套餐周期重置。",
+    ]
     assert events[-1]["type"] == "final"
+    assert events[-1]["answer"] == "续费后流量按套餐周期重置。"
 
 
-def test_grounded_answer_does_not_stream_unvalidated_content():
+@pytest.mark.parametrize(
+    ("evidence_status", "document_count"),
+    [
+        ("sufficient", 0),
+        ("partial", 0),
+        ("not_found", 1),
+        ("insufficient", 1),
+        ("conflict", 1),
+    ],
+)
+def test_grounded_answer_does_not_stream_without_documents_or_answerable_status(
+    evidence_status,
+    document_count,
+):
     reranked = {
         **prepared().graph_input,
         "scope": "in_scope",
         "action": "retrieve",
-        "retrieved_documents": [Document(page_content="资料")],
+        "retrieved_documents": [
+            Document(page_content="资料") for _ in range(document_count)
+        ],
     }
     unsafe_json = (
-        '{"evidence_status":"sufficient",'
-        '"supporting_document_indexes":[],"answer":"不应提前输出",'
+        f'{{"evidence_status":"{evidence_status}",'
+        '"supporting_document_indexes":[1],"answer":"不应提前输出",'
         '"missing_information":[],"clarifying_question":null,'
-        '"decision_reason":"无有效资料编号"}'
+        '"decision_reason":"不可提前回答"}'
     )
     with patch.object(
         get_chat_service().engine.graph,

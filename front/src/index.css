@@ -148,3 +148,14 @@ button svg, .ant-btn-icon, .ant-tag-icon { flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+.handoff-entry { width: min(900px, calc(100% - 64px)); margin: 8px auto 0; }
+.handoff-entry .ant-typography { font-size: 13px; }
+.handoff-admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; align-items: start; }
+.handoff-admin-grid > .ant-spin-nested-loading:only-child { grid-column: 1 / -1; }
+.handoff-issue, .handoff-context { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 12px; }
+.handoff-meta { font-size: 12px; }
+@media (max-width: 640px) {
+  .handoff-entry { width: calc(100% - 32px); }
+  .handoff-admin-grid { grid-template-columns: minmax(0, 1fr); }
+}

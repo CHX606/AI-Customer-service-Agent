@@ -1,7 +1,7 @@
 import { AssistantRuntimeProvider, SimpleImageAttachmentAdapter, ThreadPrimitive, useAuiState, useLocalRuntime } from "@assistant-ui/react";
 import { Conversations } from "@ant-design/x";
 import { App, Avatar, Badge, Button, Divider, Drawer, Dropdown, Flex, Form, Grid, Input, Modal, Spin, Tooltip, Typography, type InputRef } from "antd";
-import { ArrowDown, Cloud, Download, Menu, MessageCircleMore, Moon, MoreHorizontal, Plus, Settings, SquarePen, Sun, Trash2 } from "lucide-react";
+import { ArrowDown, ClipboardList, Cloud, Download, Menu, MessageCircleMore, Moon, MoreHorizontal, Plus, Settings, SquarePen, Sun, Trash2 } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
 import { useBackendProfile } from "../hooks/use-backend-profile";
 import { useConversations } from "../hooks/use-conversations";
@@ -12,6 +12,7 @@ import { Composer } from "./chat/composer";
 import { UserMessage, AssistantMessage } from "./chat/messages";
 import { ProfileContext } from "./chat/profile-context";
 import { Welcome } from "./chat/welcome";
+import { HandoffRequest } from "./chat/handoff-request";
 
 const AdminSettings = lazy(() => import("./admin-settings").then((module) => ({ default: module.AdminSettings })));
 const INITIAL_MESSAGES = loadStoredChatMessages();
@@ -23,12 +24,22 @@ function ChatWorkspace({ theme, onThemeToggle, backend }: AppearanceProps & { ba
   const screens = Grid.useBreakpoint();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isHandoffOpen, setIsHandoffOpen] = useState(false);
   const [hasOpenedAdmin, setHasOpenedAdmin] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Conversation | null>(null);
   const [renameForm] = Form.useForm<{ title: string }>();
   const renameInput = useRef<InputRef>(null);
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const handoffSuggested = useAuiState((state) => {
+    const latest = state.thread.messages.at(-1);
+    return latest?.role === "assistant" && latest.metadata.custom?.support_required === true;
+  });
+  const latestIssue = useAuiState((state) => {
+    const latest = [...state.thread.messages].reverse().find((item) => item.role === "user");
+    return latest?.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") || "";
+  });
   const { profile, isBackendOnline, imageChatEnabled, loadProfile } = backend;
   const { activeId, conversations, deleteTarget, setDeleteTarget, handleNewConversation, handleSwitchConversation, handleConfirmDelete } = useConversations(setIsSidebarOpen);
 
@@ -121,10 +132,17 @@ function ChatWorkspace({ theme, onThemeToggle, backend }: AppearanceProps & { ba
                   <Button shape="circle" className="scroll-to-bottom" icon={<ArrowDown size={18} />} aria-label="滚动到最新消息" />
                 </ThreadPrimitive.ScrollToBottom>
                 <Composer imageEnabled={imageChatEnabled} />
+                <Flex align="center" justify="space-between" gap={8} wrap className="handoff-entry">
+                  <Typography.Text type="secondary">{handoffSuggested ? "这件事需要站长查看，可填写事项后提交。" : "需要人工处理？填写事项后提交给站长。"}</Typography.Text>
+                  <Button type={handoffSuggested ? "primary" : "link"} size="small" icon={<ClipboardList size={15} />}
+                    disabled={isRunning} onClick={() => setIsHandoffOpen(true)}>提交人工处理</Button>
+                </Flex>
               </ThreadPrimitive.ViewportFooter>
             </ThreadPrimitive.Viewport>
           </ThreadPrimitive.Root>
         </section>
+        <HandoffRequest open={isHandoffOpen} onClose={() => setIsHandoffOpen(false)}
+          tenantId={profile.tenant_id} sessionId={activeId} initialIssue={latestIssue} />
         {hasOpenedAdmin && (
           <FeatureBoundary name="管理后台" onClose={() => { setIsAdminOpen(false); setHasOpenedAdmin(false); }}>
             <Suspense fallback={<Modal open={isAdminOpen} centered footer={null} title="管理后台" onCancel={() => setIsAdminOpen(false)}><Flex justify="center" className="loading-panel"><Spin /></Flex></Modal>}>

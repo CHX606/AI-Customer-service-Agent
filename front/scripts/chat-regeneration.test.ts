@@ -23,7 +23,9 @@ beforeEach(() => {
 async function run(messages: unknown[]) {
   const options = { messages, abortSignal: new AbortController().signal, unstable_assistantMessageId: "new-answer" };
   const generator = chatAdapter.run(options as Parameters<typeof chatAdapter.run>[0]) as AsyncGenerator;
-  for await (const _event of generator) { /* consume */ }
+  const updates = [];
+  for await (const event of generator) updates.push(event);
+  return updates;
 }
 
 it("sends a stable turn id and preserves the ordinary new-message operation", async () => {
@@ -86,4 +88,33 @@ it("keeps saved history when regeneration fails", async () => {
   });
   await run([user("u1")]);
   expect(getConversations()).toEqual(before);
+});
+
+
+it("keeps support metadata from stream final events after reload and subsequent turns", async () => {
+  const id = createNewConversation();
+  vi.mocked(streamChatMessage).mockImplementation(async function* (request) {
+    yield { type: "final", answer: "请提交人工处理", session_id: request.session_id, support_required: true, support_reason: "not_found" };
+  });
+  const updates = await run([user("u1")]);
+  expect(updates.at(-1).metadata.custom).toEqual({ support_required: true, support_reason: "not_found" });
+  expect(loadStoredChatMessages(id).at(-1)?.metadata?.custom).toEqual({ support_required: true, support_reason: "not_found" });
+
+  vi.mocked(streamChatMessage).mockImplementation(async function* (request) {
+    yield { type: "final", answer: "正常答案", session_id: request.session_id };
+  });
+  await run([user("u1"), { ...assistant("new-answer", "请提交人工处理"), metadata: updates.at(-1).metadata }, user("u2")]);
+  const saved = loadStoredChatMessages(id);
+  expect(saved[1]?.metadata?.custom?.support_required).toBe(true);
+  expect(saved.at(-1)?.metadata?.custom?.support_required).toBe(false);
+});
+
+it("exposes the same support metadata for image replies", async () => {
+  const id = createNewConversation();
+  const image = new File(["image"], "screen.png", { type: "image/png" });
+  vi.mocked(sendChatMessage).mockResolvedValue({ answer: "需要人工查看", session_id: id, support_required: true, support_reason: "human_action" });
+  const updates = await run([{ ...user("image-user"), attachments: [{ type: "image", file: image }] }]);
+  expect(streamChatMessage).not.toHaveBeenCalled();
+  expect(updates.at(-1).metadata.custom).toEqual({ support_required: true, support_reason: "human_action" });
+  expect(loadStoredChatMessages(id).at(-1)?.metadata?.custom?.support_required).toBe(true);
 });

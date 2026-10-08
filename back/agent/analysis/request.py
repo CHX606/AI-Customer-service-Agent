@@ -12,6 +12,14 @@ from back.agent.analysis.structured_output import _invoke_structured_output
 
 logger = logging.getLogger(__name__)
 
+# 真实会话中“有没有电脑版的”“需要下载软件吗”这类短问题常被误判为需要追问；
+# 知识库能给出覆盖多种设备的通用答案时，应直接检索回答。
+_RETRIEVE_OVER_CLARIFY_RULES = """\
+- 问题能对应到某项具体业务（下载、客户端、账号、套餐、订单、订阅、节点、支付等）时选 retrieve，即使问法简短或口语化。
+- 知识库可以给出覆盖多种设备或情况的通用答案时直接 retrieve，不要先追问设备、系统或软件。
+- 只有完全无法判断用户在问什么，或不同处理方式完全取决于用户未提供的信息时，才选 clarify。
+- 你无法查询或修改用户的账户、订单、工单和办理进度。用户询问办理进度或要求查账户时选 retrieve，不要向用户索要账号、邮箱、订单号、密码或申请记录。"""
+
 def analyze_request(
     *,
     llm: BaseChatModel,
@@ -41,6 +49,7 @@ def analyze_request(
 - new_issue 的 resolved_query 不得混入旧问题；continue/correction 可合并用户已确认的上下文。
 - 问候、感谢、告别为 chitchat；天气、新闻、通用编程等企业无关问题为 out_of_scope。
 - 完全没有业务对象或故障现象的短句为 uncertain。
+{_RETRIEVE_OVER_CLARIFY_RULES}
 - 不得编造用户未提供的事实、原因或解决方案。
 - retrieve/profile 时 missing_information 必须为空且 clarifying_question=null。
 - 改写必须保留否定关系、事件顺序、平台和软件名，不能替换流量/套餐/订阅/节点等不同概念。
@@ -90,7 +99,7 @@ def _analyze_single_turn_with_router(
 - scope 只能是 in_scope/chitchat/out_of_scope/uncertain。
 - in_scope 时选择 intent，并选择 profile/retrieve/clarify。
 - profile 只用于企业介绍、营业时间、联系方式等固定资料。
-- 问题具体时 retrieve；缺少决定检索方向的信息时 clarify。
+{_RETRIEVE_OVER_CLARIFY_RULES}
 - retrieve 可给出一条简短 rewritten_query；必须保留否定、顺序、平台和软件名。
 - 非 in_scope 时 intent=unknown、action=clarify，且不要生成 rewritten_query。
 - 不得编造事实、原因或解决方案。

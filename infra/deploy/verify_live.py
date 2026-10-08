@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import time
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import ProxyHandler, Request, build_opener
 import uuid
 
@@ -83,8 +84,12 @@ def main():
     profile_path = "/api/admin/profile?tenant_id=default"
     files_path = "/api/admin/knowledge/files?tenant_id=default"
     if args.phase == "reindex":
-        for source_id in ("legacy_kelecloud_docx", "builtin_external_apps_guide"):
-            source = api(f"/api/admin/knowledge/files/{source_id}/reindex?tenant_id=default", admin=True, method="POST")
+        ready_sources = [source for source in api(files_path, admin=True) if source["status"] == "ready"]
+        assert ready_sources, "No ready knowledge sources available for reindex"
+        for existing_source in ready_sources:
+            source_id = existing_source["source_id"]
+            encoded_id = quote(source_id, safe="")
+            source = api(f"/api/admin/knowledge/files/{encoded_id}/reindex?tenant_id=default", admin=True, method="POST")
             assert source["status"] == "ready" and source["chunk_count"] > 0
             print(json.dumps({"check": "admin_reindex", "status": "PASS", "source_id": source_id,
                               "chunks": source["chunk_count"]}), flush=True)

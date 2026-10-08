@@ -37,3 +37,5 @@ class ChatResponse(BaseModel):
     answer: str = Field(description="客服回答内容")
     session_id: str = Field(description="会话唯一标识")
     tenant_id: str = Field(default="default", description="租户标识")
+    support_required: bool = Field(default=False, description="当前回复是否建议提交人工处理")
+    support_reason: str | None = Field(default=None, description="人工处理原因")

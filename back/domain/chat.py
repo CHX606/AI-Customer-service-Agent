@@ -22,6 +22,8 @@ class ChatResult:
     answer: str
     session_id: str
     tenant_id: str
+    support_required: bool = False
+    support_reason: str | None = None
 
 
 @dataclass(frozen=True)

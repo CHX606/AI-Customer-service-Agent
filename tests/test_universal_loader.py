@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from langchain_core.documents import Document
 
-from back.knowledge.ingestion.loader import DOCUMENT_PATH, load_documents, load_source_document
+from back.knowledge.ingestion.loader import DOCUMENT_PATH, PUBLIC_DOCUMENT_PATH, PUBLIC_SOURCE_ID, load_documents, load_source_document
 from back.knowledge.ingestion.splitter import split_documents
 
 
@@ -51,12 +51,14 @@ def test_load_and_split_pdf(tmp_path: Path):
     assert expected_text in chunks[0].page_content
 
 
-def test_load_real_production_docx():
-    """测试读取工程内真实的可乐云 DOCX 操作文档。"""
+def test_load_packaged_public_default_document():
+    """默认入口读取真实的安全用户 Markdown，显式 DOCX 加载另行验证。"""
     docs = load_documents()
     assert len(docs) == 1
     assert docs[0].metadata["tenant_id"] == "default"
     assert "可乐云" in docs[0].page_content
+    assert docs[0].metadata["filename"] == PUBLIC_DOCUMENT_PATH.name
+    assert docs[0].metadata["source_id"] == PUBLIC_SOURCE_ID
 
     chunks = split_documents(docs)
     assert len(chunks) >= 20

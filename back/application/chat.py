@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from langchain_core.messages import AIMessage, HumanMessage
 from back.application.ports import AnswerCache, ChatEngine, SessionRepository, TenantReader
+from back.agent.analysis.request_rules import is_explicit_human_request
 from back.domain.chat import CacheHit as SemanticCacheHit, ChatCommand, ChatResult, ChatState, PreparedChat
 from back.domain.errors import ApplicationError, Conflict, DependencyUnavailable, InvalidRequest, NotFound, ProcessingFailed
 from back.domain.tenant import validate_tenant_id
@@ -44,6 +45,8 @@ def _cache_hit_state(
 
 def _should_store_semantic_answer(result: CustomerServiceState) -> bool:
     """只缓存有可靠依据的知识库回答或企业资料回答。"""
+    if result.get("support_required", False):
+        return False
     action = result.get("action")
     if action == "profile":
         return result.get("scope") == "in_scope"
@@ -104,7 +107,8 @@ class ChatService:
     def find_cached(self, prepared: PreparedChat) -> SemanticCacheHit | None:
         """缓存不可用时安全降级到正常 Agent，不影响客服请求。"""
         question = _first_turn_question(prepared)
-        if question is None or prepared.regenerate or prepared.cache_revision is None:
+        if (question is None or prepared.regenerate or prepared.cache_revision is None
+                or is_explicit_human_request(question)):
             return None
         try:
             hit = self.cache.find(prepared.tenant_id, question)
@@ -127,6 +131,16 @@ class ChatService:
         if not messages or not isinstance(messages[-1].content, str):
             raise ProcessingFailed("客服流程未返回有效回答。")
         final_answer = messages[-1].content
+        last_metadata = messages[-1].additional_kwargs
+        support_required = bool(result.get("support_required", last_metadata.get("support_required", False)))
+        support_reason = result.get("support_reason", last_metadata.get("support_reason")) if support_required else None
+        final_message = messages[-1].model_copy(update={"additional_kwargs": {
+            **last_metadata,
+            "support_required": support_required,
+            "support_reason": support_reason,
+        }})
+        result = {**result, "messages": [*messages[:-1], final_message],
+                  "support_required": support_required, "support_reason": support_reason}
         self.sessions.save(prepared.session_key, result, prepared.version)
         question = _first_turn_question(prepared)
         if allow_cache_store and prepared.cache_revision is not None and question is not None and _should_store_semantic_answer(result):
@@ -134,7 +148,7 @@ class ChatService:
                 self.cache.store(prepared.tenant_id, question, final_answer, expected_revision=prepared.cache_revision)
             except Exception:
                 logger.exception("语义缓存写入失败，本次回答继续返回")
-        return ChatResult(final_answer, prepared.session_id, prepared.tenant_id)
+        return ChatResult(final_answer, prepared.session_id, prepared.tenant_id, support_required, support_reason)
 
     def execute(self, command: ChatCommand, *, allow_semantic_cache: bool = True) -> ChatResult:
         prepared = self.prepare(command)

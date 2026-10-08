@@ -84,6 +84,10 @@ function serializeMessages(
         role: message.role,
         content,
         createdAt: message.createdAt.toISOString(),
+        ...(message.role === "assistant" && message.metadata?.custom?.support_required !== undefined ? {
+          support_required: message.metadata.custom.support_required === true,
+          support_reason: typeof message.metadata.custom.support_reason === "string" ? message.metadata.custom.support_reason : null,
+        } : {}),
       },
     ];
   });
@@ -153,6 +157,7 @@ export const chatAdapter: ChatModelAdapter = {
           response = event;
           yield {
             content: [{ type: "text", text: event.answer }],
+            metadata: { custom: { support_required: event.support_required ?? false, support_reason: event.support_reason ?? null } },
           };
         }
       }
@@ -172,6 +177,8 @@ export const chatAdapter: ChatModelAdapter = {
         role: "assistant",
         content: response.answer,
         createdAt: new Date().toISOString(),
+        support_required: response.support_required ?? false,
+        support_reason: response.support_reason ?? null,
       });
 
       saveStoredChatMessages(sessionId, storedMessages);
@@ -179,6 +186,7 @@ export const chatAdapter: ChatModelAdapter = {
       if (image && !regenerating) {
         yield {
           content: [{ type: "text", text: response.answer }],
+          metadata: { custom: { support_required: response.support_required ?? false, support_reason: response.support_reason ?? null } },
         };
       }
     } catch (error) {

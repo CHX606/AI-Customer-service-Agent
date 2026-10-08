@@ -3,9 +3,24 @@
 from unittest.mock import patch
 
 from langchain_core.documents import Document
+from pydantic import ValidationError
+import pytest
 
 from back.agent.analysis.evidence import EvidenceAnalysis
 from back.agent.workflow.legacy import evaluate_evidence_node, route_after_evidence
+
+
+def test_legacy_evidence_schema_keeps_only_supported_statuses():
+    schema = EvidenceAnalysis.model_json_schema()
+    assert set(schema["properties"]["evidence_status"]["enum"]) == {
+        "sufficient", "insufficient", "not_found", "conflict",
+    }
+    with pytest.raises(ValidationError):
+        EvidenceAnalysis(
+            evidence_status="partial",
+            supporting_document_indexes=[1],
+            decision_reason="旧证据链路不生成部分回答",
+        )
 
 
 def _make_dummy_docs(n=3):

@@ -615,3 +615,44 @@ def test_disabled_matching_never_opens_vector_store(monkeypatch):
         fail_getter,
     )
     assert find_matching_image_semantics(_pattern_image_bytes()) is None
+
+@pytest.mark.parametrize("state", ["开启", "关闭", "无法看清", "未出现"])
+def test_customer_visual_controls_keep_observations_and_uncertainty(state):
+    response = CustomerImageUnderstanding(
+        summary="Clash Verge 设置页",
+        visible_evidence=["系统代理：开启", f"TUN/虚拟网卡：{state}", "DNS 覆写：关闭"],
+        uncertainty="TUN 标签或状态需要确认" if state == "无法看清" else "",
+        confidence=0.9,
+    )
+    model = _FakeModel(response)
+    description = format_customer_understanding(understand_customer_image(
+        _pattern_image_bytes(), user_message="人工让我开虚拟网卡；现在打开就断网", model=model,
+    ))
+    assert f"TUN/虚拟网卡：{state}" in description
+    assert "系统代理：开启" in description and "DNS 覆写：关闭" in description
+    if state == "无法看清":
+        assert "不确定信息：TUN 标签或状态需要确认" in description
+    prompt = model.messages[0][0].content
+    assert all(name in prompt for name in ["系统代理", "TUN/虚拟网卡", "DNS 覆写"])
+    assert all(name in prompt for name in ["开启", "关闭", "无法看清", "未出现"])
+    assert "不能仅按熟悉的软件布局或颜色猜测" in prompt
+    assert "可观察到 TUN 关闭不等于已确认故障原因" in prompt
+    assert "它不能证明图片里的开关状态" in prompt
+    assert "人工让我开虚拟网卡" in model.messages[0][1].content[0]["text"]
+    assert model.messages[0][1].content[1]["image_url"]["detail"] == "high"
+
+
+def test_semantic_entry_keeps_patched_knowledge_understanding(monkeypatch, tmp_path):
+    calls = []
+    def understand(record, *, ocr_text, model):
+        calls.append((record.image_order, ocr_text, model))
+        return _card()
+    monkeypatch.setattr(image_semantics, "understand_knowledge_image", understand)
+    model = _FakeModel(RuntimeError("real understanding should not run"))
+    card, _, path = image_semantics.get_or_create_knowledge_semantics(
+        _record(tmp_path), tenant_id="default", source_id="source", ocr_text="报错",
+        output_root=tmp_path / "cache", model=model,
+    )
+    assert card.summary == "Clash 导入订阅失败界面"
+    assert calls == [(7, "报错", model)]
+    assert json.loads(path.read_text(encoding="utf-8"))["prompt_version"] == "image-semantic-v1"

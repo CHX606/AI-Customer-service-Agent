@@ -19,6 +19,8 @@ export interface StoredChatMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  support_required?: boolean;
+  support_reason?: string | null;
 }
 
 export interface Conversation {
@@ -204,6 +206,9 @@ export function loadStoredChatMessages(
     role: msg.role,
     content: msg.content,
     createdAt: new Date(msg.createdAt),
+    ...(msg.support_required === undefined ? {} : {
+      metadata: { custom: { support_required: msg.support_required, support_reason: msg.support_reason ?? null } },
+    }),
   }));
 }
 

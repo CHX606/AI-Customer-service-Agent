@@ -9,7 +9,15 @@ class CustomerServiceState(MessagesState):
 
     active_issue: NotRequired[ActiveIssue | None]
 
+    support_required: NotRequired[bool]
+
+    support_reason: NotRequired[str | None]
+
     relation: NotRequired[RelationType | None]
+
+    explicit_new_issue: NotRequired[bool]
+
+    profile_preserves_issue: NotRequired[bool]
 
     route_source: NotRequired[RouteSourceType | None]
 

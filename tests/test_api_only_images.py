@@ -80,14 +80,15 @@ def test_docx_api_mode_does_not_load_legacy_ocr_cache(monkeypatch, tmp_path):
     forbidden.assert_not_called()
 
 
-def test_legacy_rebuild_uses_verified_semantics_not_ocr(monkeypatch):
-    forbidden = Mock(side_effect=AssertionError("Legacy OCR cache must not be read"))
-    monkeypatch.setattr(knowledge_loader, "load_image_documents", forbidden)
-    loader = Mock(return_value=[Document(page_content="API 图片知识", metadata={"content_type": "image_semantic"})])
-    monkeypatch.setattr(knowledge_loader, "load_required_docx_image_semantic_documents", loader)
+def test_public_default_rebuild_never_loads_private_docx_semantics(monkeypatch):
+    forbidden = Mock(side_effect=AssertionError("Private DOCX image cache must not be read"))
+    monkeypatch.setattr(knowledge_loader, "load_required_docx_image_semantic_documents", forbidden)
+    monkeypatch.setattr(knowledge_loader, "load_cached_image_semantic_documents", forbidden)
     result = knowledge_loader._load_legacy_documents("default")
-    assert any("API 图片知识" in item.page_content for item in result)
-    loader.assert_called_once()
+    assert result
+    assert all(item.metadata["filename"].endswith(".md") for item in result)
+    assert all(item.metadata["source_id"] == "builtin_kelecloud_public" for item in result)
+    assert all(item.metadata.get("content_type") != "image_semantic" for item in result)
     forbidden.assert_not_called()
 
 

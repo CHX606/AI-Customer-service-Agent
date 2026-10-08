@@ -44,6 +44,10 @@ def isolate_test_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, re
     monkeypatch.setenv("OPENSEARCH_PASSWORD", "test-password")
     # 旧测试默认关闭语义缓存，专项测试显式开启，避免加载真实向量模型。
     monkeypatch.setenv("SEMANTIC_CACHE_ENABLED", "0")
+    # Offline tests must not read the developer's Gmail credentials or send mail.
+    monkeypatch.setenv("SMTP_PASSWORD", "")
+    monkeypatch.setenv("HANDOFF_NOTIFICATION_TO", "")
+    monkeypatch.setenv("HANDOFF_NOTIFICATION_RECIPIENTS", "")
     # 图片语义专项测试显式开启，其他测试保持离线且不访问视觉模型。
     monkeypatch.setenv("IMAGE_SEMANTIC_ENABLED", "0")
     monkeypatch.setenv(
@@ -71,6 +75,7 @@ def isolate_test_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, re
     back.infrastructure.search.opensearch.get_opensearch_client.cache_clear()
     back.knowledge.retrieval.embeddings.get_embedding_model.cache_clear()
     back.bootstrap.get_chat_service.cache_clear()
+    back.bootstrap.get_handoff_service.cache_clear()
     back.bootstrap.get_knowledge_service.cache_clear()
     back.bootstrap.get_profile_service.cache_clear()
     back.core.llm.get_image_understanding_model.cache_clear()
@@ -86,6 +91,7 @@ def isolate_test_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, re
     back.infrastructure.search.opensearch.get_opensearch_client.cache_clear()
     back.knowledge.retrieval.embeddings.get_embedding_model.cache_clear()
     back.bootstrap.get_chat_service.cache_clear()
+    back.bootstrap.get_handoff_service.cache_clear()
     back.bootstrap.get_knowledge_service.cache_clear()
     back.bootstrap.get_profile_service.cache_clear()
     back.core.llm.get_image_understanding_model.cache_clear()

@@ -43,12 +43,18 @@ def test_image_endpoint_closed_before_service_creation(monkeypatch):
 
 
 def test_text_index_does_not_require_missing_ocr_files(monkeypatch):
+    from back.knowledge.images import documents as image_documents
+    from back.knowledge.ingestion.loader import PUBLIC_SOURCE_ID
+
     monkeypatch.setenv("IMAGE_FEATURES_ENABLED", "0")
-    forbidden = Mock(side_effect=AssertionError("OCR cache must not be read"))
-    monkeypatch.setattr(knowledge_loader, "load_image_documents", forbidden)
+    forbidden = Mock(side_effect=AssertionError("OCR cache or private DOCX images must not be read"))
+    monkeypatch.setattr(image_documents, "load_image_documents", forbidden)
+    monkeypatch.setattr(knowledge_loader, "load_required_docx_image_semantic_documents", forbidden)
     documents = knowledge_loader.load_knowledge_documents("default")
     assert len(documents) > 10
     assert any("续费" in document.page_content for document in documents)
+    assert any(document.metadata["source_id"] == PUBLIC_SOURCE_ID for document in documents)
+    assert all(document.metadata["filename"].endswith(".md") for document in documents)
     assert not any(document.metadata.get("content_type", "").startswith("image") for document in documents)
     forbidden.assert_not_called()
 
