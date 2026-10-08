@@ -1,20 +1,80 @@
 # AI Customer Service Agent
 
-面向生产演进的多租户智能客服：SQLite 保存租户、知识源和语义缓存元数据，OpenSearch 持久化 BM25 与向量索引，并通过 RRF 和 CPU Reranker 完成混合检索。
+基于 FastAPI 与 LangGraph 的多租户 RAG 智能客服。结合 OpenSearch 混合检索、CPU 精排与证据约束回答，支持文档和图片知识、多轮咨询，以及用户提交人工处理申请后的邮件通知和后台跟进。
 
-Linux 服务器全新部署见 [部署说明](DEPLOY.md)，交给服务器 Codex 的任务说明见 [CODEX_DEPLOY.md](CODEX_DEPLOY.md)。部署使用 `compose.deploy.yaml`，本地开发仍使用下方原有流程。
+## 核心能力
 
-2026-09-19 服务器部署后的源码同步说明见 [SYNC_GUIDE.md](SYNC_GUIDE.md)。当前服务器使用 GPT-5.5 API 识图和 `compose.low-memory.yaml`，本地 OCR 关闭；当前验收与运维以 [API_ONLY_DEPLOYMENT.md](API_ONLY_DEPLOYMENT.md) 为准，原始部署文档中的全本地模型方案不代表当前服务器配置。
+| 能力 | 实现 |
+| --- | --- |
+| 混合检索 | OpenSearch 持久化 BM25 与 HNSW 向量索引，通过 RRF 融合召回；多个改写查询再次融合，检索按租户字段过滤 |
+| CPU 精排 | CrossEncoder 对候选资料精排，提供 ONNX INT8 推理配置；有界信号量限制同时推理数，超额请求排队并设置等待超时 |
+| 分级路由 | 明确的单轮问题优先走确定性规则，其余单轮问题使用轻量结构化路由；多轮保留问题状态和上下文分析，调用失败时按路径回退 |
+| 证据约束回答 | 在一次结构化模型调用中判断证据状态并生成答复；仅覆盖部分问题时回答有依据的部分，信息不足时追问，未命中或冲突时提示人工处理 |
+| 图文知识 | 支持 Word 图文知识入库和用户截图查询，可选择本地 OCR 或视觉模型 API；为文本命中块补齐同源、同版本、同章节的相邻内容 |
+| 人工处理申请 | 用户主动提交后保存事项与会话快照，通过 SMTP 通知；后台记录处理状态和备注，同一提交编号保持幂等 |
+| 多租户与一致性 | 会话按租户与会话编号隔离，以版本检查避免覆盖新回复；知识更新使缓存失效，写缓存时在事务内再次校验版本 |
+| 前端与部署 | React / TypeScript 前端通过 NDJSON 接收状态和回答；提供 Docker Compose 标准与低内存部署配置 |
 
-## 存储与检索架构
+## 架构
 
-- SQLite：租户配置、知识源登记、索引状态和语义缓存元数据。
-- 独立 SQLite 会话库：最近消息和当前问题状态持久化，按租户隔离并检查并发写入版本。
-- OpenSearch：知识块正文、BM25 关键词索引、512 维向量索引和租户过滤字段。
-- RRF：在 OpenSearch 搜索管道中融合 BM25 与向量召回结果。
-- ONNX INT8 Reranker：对 8 个候选块精排，最终向回答模型提供 5 个证据块。
+```text
+React 前端
+    │ NDJSON 状态与回答
+    ▼
+FastAPI 接口层：认证、请求校验、协议转换
+    │
+    ▼
+LangGraph 工作流
+请求分析 → 路由 → 混合检索 → 精排与上下文扩展 → 回答 / 追问 / 人工处理提示
+    │
+    ├─ OpenSearch：知识正文、关键词和向量索引
+    ├─ SQLite：租户、知识源、缓存元数据
+    └─ SQLite 会话库：最近消息、活动问题、写入版本
 
-`data/chroma_db` 仅是迁移前遗留数据，当前运行链路不会读取它。
+用户提交人工处理申请 → SQLite 申请记录 → SMTP 通知 → 后台跟进
+```
+
+代码按 `domain / application / infrastructure / interfaces` 分层，依赖在 `bootstrap.py` 统一组装。详见 [工程分层说明](docs/architecture/engineering.md)。
+
+## 关键设计
+
+- **先规则、后模型**：明确请求由规则直接路由，复杂多轮保留上下文分析，减少简单请求的额外模型调用。
+- **关键词与语义互补**：BM25 处理专有词与精确表达，向量召回覆盖口语化改写；RRF 按排名融合，之后用 CrossEncoder 精排。
+- **部分回答与追问**：资料只覆盖部分问题时先回答有依据的内容，缺少关键情况时追问，并保留当前问题状态。
+- **人工建议与申请分开**：聊天提示人工处理不会自动创建申请或发送邮件；用户明确提交后才登记，邮件失败不影响申请保存，通知状态可在后台查看。
+- **缓存保持可选**：语义答案缓存默认关闭；启用后仅缓存满足条件的首轮问题，知识更新和事务内版本校验用于避免旧答案再次写回。
+
+知识库正文流式输出在存在候选资料且模型声明可完整或部分回答时开放，最终结果校验结构字段。这些检查不等于自动验证答案事实正确，效果仍需固定测试集和人工复核。
+
+## 评测记录
+
+以下为已有本机实验记录，本次文档修改未重新运行；不代表当前服务器或线上流量指标。
+
+| 测试 | 条件与记录 |
+| --- | --- |
+| 检索与精排 | Ryzen 7 7840H、ONNX AVX512 INT8、8 个候选；45 条可评分问题重复 3 轮，共 135 个样本，Hit@5 91.11%、MRR 0.8063，精排 P95 约 1.09 秒 |
+| 端到端回答 | 完整测试集 63 条；并发 1 / 5 / 10 的完整回答 P95 为 7.12 / 9.37 / 11.61 秒，规则评分通过率均为 80.95% |
+| 有依据回答对照 | 2026-09-28，29 条用例，优化前后各运行 3 遍；同一知识库快照、模型配置和单并发下，部分回答用例由 1/6 提升至 6/6，先追问再提示人工处理的流程由 0/9 提升至 7/9 |
+
+规则评分依据关键词、路由与回答行为，不等于事实正确率。历史对照仍发现内部操作说明等回答问题，有限样本的改善不能推导为线上整体质量结论。重排并发上限按部署配置调整，当前配置样例为 2；历史本机 AVX512 数据不能直接代替服务器 AVX2 配置的性能。
+
+测试命令、口径和已知限制见 [性能测试](docs/testing/performance.md) 与 [有依据回答评测](docs/testing/grounded-optimization.md)。
+
+## 技术栈
+
+Python 3.12 · FastAPI · LangGraph / LangChain · OpenSearch · sentence-transformers · ONNX Runtime · SQLite · React · TypeScript · Vite / Vitest · Docker Compose
+
+## 文档
+
+| 主题 | 文档 |
+| --- | --- |
+| 工程分层 | [工程分层说明](docs/architecture/engineering.md) |
+| 性能测试 | [性能测试说明](docs/testing/performance.md) |
+| 有依据回答 | [评测与限制](docs/testing/grounded-optimization.md) |
+| 人工处理 | [邮件转人工流程](docs/setup/email-handoff.md) |
+| OpenSearch | [迁移说明](docs/migrations/opensearch.md) |
+| Windows 环境 | [CPU 环境说明](docs/setup/cpu-windows.md) |
+| Linux 部署 | [部署说明](DEPLOY.md) |
 
 ## 目录
 

@@ -58,7 +58,7 @@ $env:SEMANTIC_CACHE_ENABLED="0"
 
 生产请求默认启用 Router V2：明确单轮问题走确定性快速通道，其他单轮问题走最小结构化路由；存在历史消息或活动问题时继续使用完整上下文分析器，保留指代消解、问题纠正、追问回答和查询改写。可分别通过 `ROUTER_MODEL`、`CONTEXT_MODEL` 和 `RESPONSE_MODEL` 配置路由、复杂多轮分析和最终回答模型；异常会自动回退，紧急回滚只需设置 `ROUTER_V2_ENABLED=0`。
 
-当前生产配置中，复杂多轮分析使用 `gpt-5.3-codex-spark`，最终回答使用 `gpt-5.6-luna`。24 条请求分析测试均正确，复杂多轮 12/12 正确；相较 `gpt-5.4-mini`，复杂多轮 P95 从 11081.21ms 降至 4585.17ms。14 条回答 smoke 测试质量均为 85.71%，Luna 将回答 P95 从 11168.85ms 降至 10123.30ms。
+历史模型配置对照中，24 条请求分析测试均符合规则评分，复杂多轮为 12/12；复杂多轮 P95 从 11081.21ms 降至 4585.17ms。14 条回答冒烟测试的规则评分通过率均为 85.71%，回答 P95 从 11168.85ms 降至 10123.30ms。这些为当时配置的本机记录，不代表当前部署配置或事实正确率。
 
 最终回答进一步采用 `RESPONSE_REASONING_EFFORT=low`，压缩重复规则和结构字段，但保留全部 5 份精排证据正文。完整 63 条测试结果如下：
 
@@ -70,7 +70,7 @@ $env:SEMANTIC_CACHE_ENABLED="0"
 
 相较 Router V2 初始版本，完整答案 P95 在并发 1/5/10 下分别从 14300.35/14692.15/18632.32ms 降至 7120.73/9369.31/11614.85ms。三档并发质量一致且略有提升，因此保留当前配置。
 
-CPU Reranker 使用进程内有界信号量限制同时推理数，超出的请求进入队列。可通过 `RERANKER_MAX_CONCURRENCY` 和 `RERANKER_QUEUE_TIMEOUT_SECONDS` 调整。当前机器 10 请求突发压测中，并发上限 1/2/4 的吞吐分别为 5.70/7.39/8.30 次/秒，重排完成 P95 分别为 1671.03/1341.01/1193.12ms，因此默认设为 4。
+CPU Reranker 使用进程内有界信号量限制同时推理数，超出的请求进入队列。可通过 `RERANKER_MAX_CONCURRENCY` 和 `RERANKER_QUEUE_TIMEOUT_SECONDS` 调整。当前机器 10 请求突发压测中，并发上限 1/2/4 的吞吐分别为 5.70/7.39/8.30 次/秒，重排完成 P95 分别为 1671.03/1341.01/1193.12ms，这些数值是该次本机压测记录。当前源码和配置样例的默认并发上限为 2；部署时应按机器配置与排队延迟调整。
 
 ```powershell
 .\.venv\Scripts\python.exe -m evaluation.benchmarks.reranker_concurrency --limits 1 2 4 --requests 10
@@ -116,7 +116,7 @@ $env:BENCHMARK_TENANT_TOKEN="你的租户令牌"
 ## 4. 指标含义
 
 - `first_event_ms`：用户多久看到第一个处理状态。
-- `first_token_ms`：用户多久看到回答正文的第一个 Token；知识库回答只有在证据状态和支持资料编号通过校验后才开放输出。
+- `first_token_ms`：用户多久看到回答正文的第一个 Token；知识库回答在候选资料非空且模型声明证据状态为 sufficient / partial 时开放正文输出；最终结果校验结构字段，这不等于验证支持编号或答案事实正确。
 - `time_to_answer_ms`：最终完整答案返回耗时。
 - `routing_ms`：从“理解问题”到“查询知识库”，主要看请求分析与路由。
 - `route_source`：记录请求命中的路由层，包含 `fast_rule`、`light_model`、`legacy_context`、`legacy_full`、`fallback_full` 和 `semantic_cache`。
